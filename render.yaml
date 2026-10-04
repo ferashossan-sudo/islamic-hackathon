@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: ltq-app
+    runtime: python
+    plan: starter
+    region: frankfurt
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1 --proxy-headers --no-access-log
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.16
+      - key: FORWARDED_ALLOW_IPS
+        value: "*"
+      - key: APP_ENV
+        value: prod
+      - key: ROUTER_MODEL
+        value: claude-opus-5-5
+      - key: LLM_ENABLED
+        value: "false"
+      - key: FRAMING_ENABLED
+        value: "true"
+      - key: DAILY_COST_CAP_USD
+        value: "2"
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: SELFTEST_TOKEN
+        generateValue: true
+      - key: SUGGEST_FORM_URL
+        sync: false
+      - key: TEAM_EMAIL
+        sync: false
+      - key: SUBMISSION_COMMIT
+        sync: false

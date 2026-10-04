@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="referrer" content="no-referrer">
+<title>ليطمئنّ قلبي</title>
+<link rel="stylesheet" href="/static/styles.css">
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <div class="top-row">
+    <h1 class="brand">ليطمئنّ قلبي</h1>
+    <button type="button" id="clear" class="link-button">{{l:clear_chat}}</button>
+  </div>
+  <p class="disclosure-short">{{t:disclosure_header}}</p>
+  <nav class="top-links">
+    <a href="#privacy" data-open="privacy">{{l:privacy_link}}</a>
+    <a href="#support" data-open="support">{{l:support_link}}</a>
+  </nav>
+</header>
+
+<main id="main">
+  <div id="log" class="log" role="log" aria-live="polite" aria-busy="false">
+    <article class="msg bot welcome">
+      <p class="disclosure-full">{{t:disclosure}}</p>
+      {{p:welcome}}
+    </article>
+  </div>
+
+  <section class="info">
+    <details id="privacy">
+      <summary>{{l:privacy_link}}</summary>
+      {{ulh:privacy_section}}
+    </details>
+    <details id="support">
+      <summary>{{l:support_link}}</summary>
+      {{ul:distress_contacts}}
+    </details>
+  </section>
+
+  <footer class="foot">
+    <span>{{f:0}}</span> · <span>{{f:1}} <bdi>{{v:version}}</bdi></span> · <a href="#privacy" data-open="privacy">{{f:2}}</a>
+  </footer>
+</main>
+
+<form id="composer" class="composer" novalidate>
+  <label for="message" class="visually-hidden">{{l:input_placeholder}}</label>
+  <textarea id="message" name="message" rows="1" maxlength="4000" placeholder="{{l:input_placeholder}}" autocomplete="off" enterkeyhint="send"></textarea>
+  <button type="submit" id="send">{{l:send}}</button>
+  <p id="counter" class="counter" aria-live="polite"></p>
+</form>
+</body>
+</html>

@@ -1,0 +1,308 @@
+{
+  "disclosure": {
+    "text": "أنا مساعد ذكاء اصطناعي، ولست شيخاً ولا مفتياً. أعرض عليك إجابات راجعها المراجع الشرعي للفريق، من مصادر إسلامية معتمدة ومصادر علمية موثوقة. وإن لم أجد جواباً موثوقاً أخبرتك بذلك بوضوح.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "disclosure_header": {
+    "text": "مساعد ذكاء اصطناعي، وليس شيخاً ولا مفتياً.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "welcome": {
+    "text": "أهلاً بك في «ليطمئنّ قلبي».\nمساحة هادئة للسؤال دون اسم ولا حساب، عن التساؤلات العلمية والوجودية المتعلقة بالإيمان، مثل: كيف بدأ الكون؟ وما الحكمة من وجود الشر والألم؟\n{الرقائق}\nتظهر مع كل إجابة مصادرها، والآيات بنصها من المصحف.\nلا أُصدر فتوى، ولا أحكم في حالة شخصية، ولا أجيب عن مسائل الفقه اليومية، وأدلّك فيها على جهة مختصة. والخدمة لمن بلغ 16 سنة فأكثر.\nخصوصيتك: لا نطلب اسمك، ولا نحفظ محادثتك على خوادمنا، ويُرسل نص رسالتك وحده إلى شركة Anthropic لفهم سؤالك. التفاصيل في «الخصوصية».",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "privacy_section": {
+    "text": "الخصوصية\nلا تسجيل دخول، ولا نطلب اسمك ولا بريدك ولا رقم جوالك.\nتُعالج رسالتك في ذاكرة الخادم لحظة الإجابة، ولا نحفظ محادثاتك على خوادمنا.\nلفهم سؤالك واختيار الإجابة المناسبة، يُرسل نص رسالتك إلى شركة Anthropic، مزوّد النموذج اللغوي، دون عنوان جهازك ودون أي معرّف لك.\nبحسب سياسة Anthropic المعلنة: لا تُستخدم بيانات واجهتها البرمجية في تدريب نماذجها افتراضياً، وتُحذف خلال 30 يوماً، إلا في حالات تذكرها سياستها.\nتُعالج رسالتك على خوادم خارج المملكة: خادمنا في ألمانيا (فرانكفورت)، ومزوّد النموذج Anthropic شركة خارج المملكة.\nلا نسجّل نص رسالتك، ولا عنوان جهازك، ولا معرّف جلستك.\nلا يضم سجلّ الخدمة إلا أرقاماً: حجم كل استدعاء للنموذج وتكلفته، ومجاميع يومية مثل عدد الرسائل والمحادثات.\nلا نحفظ تصنيف رسالتك، ولا نبني منه أي وصف لك.\nالموضوعات الأكثر سؤالاً تُحصى مجمّعة لليوم كله، ولا تُسجَّل في يوم فيه أقل من 10 رسائل.\nلحماية الخدمة من الإساءة، نعدّ الرسائل مؤقتاً في ذاكرة الخادم ببصمة لا تكشف عنوانك، ولا تُكتب في أي سجل.\nيحتفظ مزوّد الاستضافة Render بسجلات تشغيل الخادم 7 أيام للتشخيص، وليس فيها نص رسالتك.\nلا نحفظ محادثتك في جهازك، لكنها تبقى ظاهرة في الصفحة ما دامت مفتوحة، ويمكنك مسحها متى شئت بزر «مسح المحادثة».\n«اقترح سؤالك» استمارة من Google لا تطلب اسماً ولا بريداً ولا تسجيل دخول، فلا نعرف من أرسل السؤال، وتخضع لسياسة خصوصية Google.\nلا يُنقل سؤالك إلى الاستمارة تلقائياً، فأنت من يقرر ما يُرسل.\nلا إعلانات ولا أدوات تتبّع، وكل ملفات الصفحة وخطوطها من خادمنا.\nننصحك ألا تكتب في رسائلك اسمك أو أي معلومة تدل عليك.\nللتواصل مع الفريق: {بريد الفريق}",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "abstain": {
+    "text": "لم أجد في الإجابات المراجعة جواباً موثوقاً عن سؤالك، ولن أخمّن.\nيمكنك إعادة صياغة سؤالك بكلمات أخرى. وللتوسع فيه، يمكنك سؤال عالم موثوق تعرفه، أو جهة الإفتاء الرسمية (alifta.gov.sa).",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "fail_closed": {
+    "text": "تعذّر عليّ الآن إعداد إجابة اكتمل التحقق منها، فلن أعرض شيئاً لم يُتحقق منه. يمكنك إعادة المحاولة بعد قليل.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "no_matching_evidence": {
+    "text": "لم أجد في الإجابات المراجعة المتاحة لي دليلاً مطابقاً لطلبك، ولن أخمّن. ولا أنسب إلى القرآن أو السنة شيئاً من عندي.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "no_matching_evidence_hadith": {
+    "text": "وللبحث في الأحاديث وأحكام العلماء عليها: الموسوعة الحديثية في الدرر السنية (dorar.net/hadith).",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "level_c_notice": {
+    "text": "تنبيه: في هذه المسألة جوانب دقيقة. ما فيه نص صريح أعرضه بنصه، وما فيه أقوال لأهل العلم أنسبه إلى قائله دون جزم، وتظهر درجة كل معلومة علمية بجانبها. وللتفصيل يُرجَع إلى عالم موثوق.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "degraded_mode": {
+    "text": "أعمل الآن مؤقتاً بطريقة بحث أبسط، فقد لا أفهم صيغة سؤالك كما ينبغي. ما أعرضه ما زال من الإجابات المراجعة نفسها. لنتيجة أوضح، اكتب سؤالك بكلمات مباشرة، أو اختر من الأسئلة المقترحة.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "degraded_badge": {
+    "text": "بحث مبسّط مؤقتاً",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "rate_limit": {
+    "text": "بلغت الرسائل الحد المؤقت المسموح به الآن. يمكنك المتابعة بعد {المدة}، وما كتبته باقٍ في خانة الكتابة. وهذا الحد يُبقي الخدمة متاحة للجميع.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "support_line": {
+    "text": "إن احتجت إلى مساعدة عاجلة: الطوارئ 911 أو 998 · وزارة الصحة على مدار الساعة 937",
+    "text_en": "Need urgent help in Saudi Arabia? Emergency: 911 or 998 · Ministry of Health, 24/7: 937",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "input_too_long": {
+    "text": "رسالتك أطول من 800 حرف. يمكنك اختصارها أو تقسيمها على رسالتين، ثم إعادة الإرسال. وما كتبته باقٍ في خانة الكتابة.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "input_invalid": {
+    "text": "تعذّر إرسال رسالتك. يمكنك كتابة سؤالك نصاً عادياً، ثم إعادة الإرسال.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "network_error": {
+    "text": "تعذّر الاتصال بالخدمة الآن، وما كتبته باقٍ في خانة الكتابة. يمكنك التأكد من اتصالك بالإنترنت، ثم الضغط على «أعد المحاولة».",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "followup_exhausted": {
+    "text": "هذا كل ما في الإجابة المراجعة عن هذا السؤال، ولا أضيف إليها شيئاً من عندي. يمكنك الرجوع إلى المصدر الأصلي من رابطه أدناه. وللتوسع، فسؤال عالم موثوق تعرفه، أو جهة الإفتاء الرسمية في بلدك (وفي السعودية: alifta.gov.sa)، أنفع لك مما أستطيع هنا.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "non_arabic": {
+    "text": "هذه الخدمة بالعربية فقط حالياً، ولا أترجم إجاباتها المراجعة حتى لا يتغير معناها. يمكنك إعادة سؤالك بالعربية.\nولمعاني المصطلحات الإسلامية بلغات أخرى:\n- موسوعة المصطلحات الإسلامية: terminologyenc.com/en\n- موسوعة الجمهرة، مفردات المحتوى الإسلامي: islamic-content.com/dictionary\n- موقع دار الإسلام بالإنجليزية (IslamHouse): islamhouse.com/en",
+    "text_en": "This service is available in Arabic only for now. I do not translate the reviewed answers, so that their meaning is not altered. Please ask your question in Arabic.\nFor the meanings of Islamic terms in other languages:\n- Encyclopedia of Translated Islamic Terms: terminologyenc.com/en\n- Al-Jamhara, a multilingual dictionary of Islamic terms: islamic-content.com/dictionary\n- IslamHouse in English: islamhouse.com/en",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "greeting_salam": {
+    "text": "وعليكم السلام ورحمة الله وبركاته، أهلاً بك. يمكنك كتابة سؤالك عن نشأة الكون، أو الحكمة من الشر، أو الوحي والعلم، أو اختيار أحد الأسئلة المقترحة.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "greeting_general": {
+    "text": "أهلاً بك. يمكنك كتابة سؤالك عن نشأة الكون، أو الحكمة من الشر، أو الوحي والعلم، أو اختيار أحد الأسئلة المقترحة.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "thanks": {
+    "text": "حيّاك الله، ويمكنك السؤال متى شئت.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "referral_personal_fatwa": {
+    "text": "إن كان سؤالك عن حالة شخصية، فالحكم فيها يختلف باختلاف تفاصيلها، ولذلك يحتاج إلى مفتٍ يسمع منك. أنا مساعد ذكاء اصطناعي ولست مفتياً، فلا أُصدر حكماً فيها.\nيمكنك عرض سؤالك على جهة الإفتاء الرسمية في بلدك، وفي السعودية: الرئاسة العامة للبحوث العلمية والإفتاء (alifta.gov.sa)، أو على عالم موثوق تعرفه.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "referral_fiqh": {
+    "text": "إن كان سؤالك عن حكم فقهي عملي، فهو خارج ما أجيب عنه هنا، فأنا مخصص للتساؤلات العلمية والوجودية المتعلقة بالإيمان، ولا أخمّن فيه.\nتجد مسائل الفقه في قسم الفقه في الدرر السنية (dorar.net/feqhia)، ويمكنك سؤال جهة الإفتاء الرسمية في بلدك (وفي السعودية: alifta.gov.sa).",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "referral_hadith_check": {
+    "text": "الحكم على صحة الأحاديث لأهل الاختصاص في الحديث، ولا أحكم على حديث من عندي.\nيمكنك البحث عنه في الموسوعة الحديثية في الدرر السنية (dorar.net/hadith)، فهي تعرض الحديث مع أحكام العلماء عليه ومصادره.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "referral_other_topic": {
+    "text": "سؤالك خارج ما أجيب عنه هنا. أنا مخصص للتساؤلات العلمية والوجودية المتعلقة بالإيمان، مثل نشأة الكون، والحكمة من الشر، والوحي والعلم.\nوإن كان قريباً من هذه الموضوعات، يمكنك اقتراحه على الفريق.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "referral_manipulation": {
+    "text": "أجيب هنا من الإجابات المراجعة فقط، ولا تتغير طريقتي بطلب داخل الرسالة، ولا أُصدر أحكاماً شرعية من عندي. وإن كان عندك سؤال عن الإيمان، فيسعدني أن أبحث عنه في الإجابات المراجعة.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "notice_repeat": {
+    "text": "هذه خلاصة الجواب، ومعها توجيه معتمد قد يعينك.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "repeat_referral": {
+    "text": "إن أحببت الحديث مع أحد مباشرة:\n- لمناقشة السؤال علمياً: عالم موثوق تعرفه، أو جهة الإفتاء الرسمية في بلدك (وفي السعودية: الرئاسة العامة للبحوث العلمية والإفتاء، alifta.gov.sa).\n- وللحديث مع مختص عن أي أمر يشغلك: الاستشارات النفسية 920033360 · المصدر: وزارة الصحة.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "distress": {
+    "text": "سلامتك أهم من أي نقاش الآن.\nإن كنت في خطر الآن، فاتصل فوراً بالطوارئ: 911 أو 998.\nوإن كان هذا وقتاً صعباً عليك، أو كانت تراودك أفكار بإيذاء نفسك، فلست وحدك، والمساعدة متاحة. يمكنك التحدث مع مختص على أحد الأرقام أدناه، أو إخبار شخص تثق به.\nأنا مساعد ذكاء اصطناعي، ولا أستطيع الاتصال بأحد نيابة عنك.\nطلب المساعدة قوة، لا ضعف.\n{أرقام الدعم}\nإن كنت خارج السعودية، فاتصل برقم الطوارئ في بلدك.\nوإن كان في بالك سؤال، فيمكنك كتابته هنا متى شئت.",
+    "text_en": "Your safety matters more than any discussion right now.\nIf you are in danger now, call emergency services immediately: 911 or 998 (Saudi Arabia).\nIf this is a hard time for you, or you are having thoughts of hurting yourself, you are not alone, and help is available. You can talk to a professional on one of the numbers below, or tell someone you trust.\nI am an AI assistant and cannot contact anyone on your behalf.\nAsking for help is a strength, not a weakness.\n{أرقام الدعم}\nIf you are outside Saudi Arabia, call your local emergency number.",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "distress_contacts": {
+    "text": "الطوارئ: 911 · المصدر: الدفاع المدني السعودي\nالدفاع المدني: 998 · المصدر: الدفاع المدني السعودي\nاستشارة طبية على مدار الساعة: 937 · المصدر: وزارة الصحة\nالاستشارات النفسية: 920033360 · المصدر: وزارة الصحة",
+    "text_en": "Emergency: 911 · Source: Saudi Civil Defense\nCivil Defense: 998 · Source: Saudi Civil Defense\nMedical advice, 24/7: 937 · Source: Ministry of Health\nMental-health counselling: 920033360 · Source: Ministry of Health",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "distress_addon_harm": {
+    "text": "وإن كان أحد يؤذيك: مركز بلاغات العنف الأسري 1919 (مجاني، وعلى مدار الساعة) · المصدر: وزارة الموارد البشرية والتنمية الاجتماعية",
+    "text_en": "If someone is hurting you: Domestic Violence Reporting Center 1919 (toll-free, 24/7) · Source: Ministry of Human Resources and Social Development",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "reviewer_attribution": {
+    "text": "راجعها المراجع الشرعي للفريق واعتمدها في {التاريخ}.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "reviewer_attribution_ai_drafted": {
+    "text": "صيغت بمساعدة الذكاء الاصطناعي من المصدر، واعتمدها المراجع الشرعي للفريق في {التاريخ}.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "badge_framing": {
+    "text": "صياغة المساعد",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "badge_framing_hint": {
+    "text": "جملة يكتبها المساعد آلياً ليربط الإجابة بسؤالك، وليست من الإجابة المراجعة.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "badge_reviewed": {
+    "text": "مبني على إجابة مراجعة · {المصدر}",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "badge_reviewed_paraphrase": {
+    "text": "مبني على إجابة مراجعة · بتصرف عن {المصدر}",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "badge_reviewed_hint": {
+    "text": "هذا نص الإجابة كما اعتمده المراجع الشرعي للفريق، دون تعديل من المساعد. و«بتصرف» تعني أنها منقولة من المصدر بالمعنى لا باللفظ.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "level_labels": {
+    "text": "A: المستوى (أ): معلومة ثابتة\nB: المستوى (ب): شرح واستدلال\nC: المستوى (ج): مسألة دقيقة",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "science_degree_labels": {
+    "text": "fact: حقيقة ثابتة\nleading_theory: نظرية راجحة\nhypothesis: فرضية",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "science_degree_hints": {
+    "text": "حقيقة ثابتة: ثبتت بالرصد أو التجربة، واستقر عليها المختصون.\nنظرية راجحة: أقوى تفسير علمي متاح اليوم، وقد يتعدل بأدلة جديدة.\nفرضية: احتمال علمي مطروح لم يثبت بعد.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "science_block_note": {
+    "text": "المعلومة العلمية هنا شاهد يوضّح، لا أصل يقوم عليه الجواب، ولهذا تظهر درجتها بجانبها.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "suggest_question": {
+    "text": "لم تجد جواب سؤالك؟ يمكنك إرساله إلى الفريق عبر استمارة قصيرة لا تطلب اسماً ولا بريداً ولا تسجيل دخول.\nلا يُنقل سؤالك إليها تلقائياً، فاكتبه فيها بنفسك دون ما يدل عليك. يطّلع الفريق على الأسئلة المرسلة، وقد يُضاف جوابها بعد مراجعته واعتماده.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "suggest_question_short": {
+    "text": "استمارة لا تطلب اسماً ولا بريداً، ولا يُنقل سؤالك إليها تلقائياً.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "misquote_notice": {
+    "text": "نص الآية في رسالتك فيه اختلاف عن نصها في المصحف، ولعلك تقصد قوله تعالى:\n﴿{النص}﴾ [{السورة}: {رقم الآية}]\nوالمعتمد هنا نصها في المصحف.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "tafsir_label": {
+    "text": "خلاصة قول {المفسر} بتصرف، وليست من نص الآية · المصدر: {المصدر}",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "hadith_attribution_line": {
+    "text": "المصدر: {المصدر}، رقم {الرقم} · الدرجة: {الدرجة} · المحدّث: {المحدث}",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "hadith_via_hadeethenc": {
+    "text": "نُقل من: موسوعة الأحاديث النبوية (HadeethEnc.com)",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "ui_labels": {
+    "text": "loading: أبحث في الإجابات المراجعة…\nmaybe_you_mean: ربما تقصد:\nmay_help: قد يفيدك:\nread_full: اقرأ الإجابة كاملة\ncollapse: إخفاء الإجابة الكاملة\nsharia_texts: النصوص الشرعية\nscience: معلومات علمية\nsources: المصادر\nrelated: أسئلة مرتبطة\nverify: تحقق من المصدر\nsupport_link: أرقام الدعم\nsuggest_button: اقترح سؤالك\nretry: أعد المحاولة\nprivacy_link: الخصوصية\ninput_placeholder: اكتب سؤالك هنا…\nsend: أرسل\nchar_counter: {العدد} من 800\nclear_chat: مسح المحادثة\nclear_chat_confirm: تُمسح المحادثة من هذه الصفحة، ولا يمكن استرجاعها.\nconfirm_clear: امسح\ncancel: إلغاء\nclose: إغلاق",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "footer": {
+    "text": "مساعد ذكاء اصطناعي · الإصدار {الإصدار} · الخصوصية",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "footer_submission_match": {
+    "text": "مطابق للنسخة المسلّمة",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  }
+}
