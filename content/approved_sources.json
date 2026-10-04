@@ -1,5 +1,5 @@
 {
-  "note": "Domains allowed in KB links. Tafsir links must also be in tafsir_domains. NASA is excluded (its guidelines restrict use in AI products). Saudi scholarly sources (alifta.gov.sa, binbaz.org.sa, binothaimeen.net, alfawzan.af.org.sa) are used for explanation and creed with attribution; verse meanings still come only from the approved tafsir sources.",
+  "note": "Domains allowed in KB links. Tafsir links must also be in tafsir_domains. Science comes only from sources whose terms allow use in an AI product (checked on 4 October 2026, see SOURCES.md): U.S. government science agencies (public domain), ESO and NOIRLab press-release texts (CC BY 4.0), UC Berkeley Understanding Evolution (CC BY-NC-SA 4.0), Our World in Data (CC BY 4.0) and Wikipedia (CC BY-SA 4.0) as a last resort. Excluded: NASA, Hubble and Webb sites (their guidelines restrict AI use), OpenStax (no ingestion into AI products without written permission), the A.D.A.M. encyclopedia inside MedlinePlus (/ency/, AI use prohibited), ESA, CK-12 and the National Academies (all rights reserved). Saudi scholarly sources (alifta.gov.sa, binbaz.org.sa, binothaimeen.net, alfawzan.af.org.sa) are used for explanation and creed with attribution; verse meanings still come only from the approved tafsir sources.",
   "domains": [
     "dorar.net",
     "hadeethenc.com",
@@ -10,18 +10,47 @@
     "terminologyenc.com",
     "islamic-content.com",
     "dawa.center",
-    "openstax.org",
     "alifta.gov.sa",
     "binbaz.org.sa",
     "islamqa.info",
     "shamela.ws",
     "tafsir.net",
     "binothaimeen.net",
-    "alfawzan.af.org.sa"
+    "alfawzan.af.org.sa",
+    "energy.gov",
+    "nsf.gov",
+    "eso.org",
+    "noirlab.edu",
+    "noaa.gov",
+    "usgs.gov",
+    "nps.gov",
+    "cdc.gov",
+    "genome.gov",
+    "nigms.nih.gov",
+    "medlineplus.gov",
+    "evolution.berkeley.edu",
+    "ourworldindata.org",
+    "wikipedia.org"
   ],
   "tafsir_domains": [
     "dorar.net",
     "shamela.ws",
     "quranpedia.net"
-  ]
+  ],
+  "science_licences": {
+    "energy.gov": "Public domain (U.S. Department of Energy)",
+    "nsf.gov": "Public domain (U.S. National Science Foundation)",
+    "eso.org": "CC BY 4.0 (ESO), paraphrased and translated",
+    "noirlab.edu": "CC BY 4.0 (NSF NOIRLab), paraphrased and translated",
+    "noaa.gov": "Public domain (NOAA)",
+    "usgs.gov": "Public domain (USGS)",
+    "nps.gov": "Public domain (U.S. National Park Service)",
+    "cdc.gov": "Public domain (CDC)",
+    "genome.gov": "Public domain (NHGRI)",
+    "nigms.nih.gov": "Public domain (NIGMS)",
+    "medlineplus.gov": "Public domain (U.S. National Library of Medicine)",
+    "evolution.berkeley.edu": "CC BY-NC-SA 4.0 (UCMP Understanding Evolution), paraphrased and translated",
+    "ourworldindata.org": "CC BY 4.0 (Our World in Data)",
+    "wikipedia.org": "CC BY-SA 4.0 (Wikipedia), paraphrased and translated"
+  }
 }

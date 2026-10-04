@@ -94,8 +94,8 @@ GOOD = {
     "transfer": "paraphrase", "source": {"name": "الدرر السنية", "url": "https://dorar.net/aqeeda/1", "locator": ""},
     "verses": ["الطور:35"],
     "tafsir": [{"mufassir": "الطبري", "summary": "خلاصة تفسير.", "source": "الموسوعة التفسيرية", "url": "https://dorar.net/tafseer/52/2"}],
-    "hadiths": [], "science": [{"claim": "للكون بداية زمنية", "degree": "leading_theory", "source": "OpenStax Astronomy 2e",
-                                "url": "https://openstax.org/books/astronomy-2e/pages/29-1", "licence": "CC BY-NC-SA 4.0"}],
+    "hadiths": [], "science": [{"claim": "للكون بداية زمنية", "degree": "leading_theory", "source": "U.S. Department of Energy, DOE Explains: Cosmology",
+                                "url": "https://www.energy.gov/science/doe-explainscosmology", "licence": "Public domain (U.S. Department of Energy)"}],
     "related": [], "featured": False, "prepared_by": "فراس", "drafted_with_ai": True,
 }
 

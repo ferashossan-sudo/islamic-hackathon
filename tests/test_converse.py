@@ -12,12 +12,12 @@ from tests.test_lexical_line import SAMPLE, entry
 
 ENTRY = entry("kawn-universe-x", "هل الكون جاء صدفة؟", ["الكون صدفة؟", "هل نشأ الكون بالصدفة", "الكون جا صدفة", "وجود الكون صدفة"],
               body="يرى العلماء أن للكون بداية قبل نحو 13.8 مليار سنة، وما له بداية لا بد له من موجد {{q:52:35}}.",
-              science=[{"claim": "للكون بداية زمنية", "degree": "leading_theory", "source": "OpenStax Astronomy 2e",
-                        "url": "https://openstax.org/books/astronomy-2e/pages/29-3", "licence": "CC BY-NC-SA 4.0"}],
+              science=[{"claim": "للكون بداية زمنية", "degree": "leading_theory", "source": "U.S. Department of Energy, DOE Explains: Cosmology",
+                        "url": "https://www.energy.gov/science/doe-explainscosmology", "licence": "Public domain (U.S. Department of Energy)"}],
               hadiths=[{"text": "كل مولود يولد على الفطرة", "source": "صحيح البخاري", "number": "1358", "grade": "صحيح",
                         "grader": "البخاري ومسلم (متفق عليه)", "url": "https://hadeethenc.com/ar/browse/hadith/1",
                         "via": "hadeethenc", "purpose": "evidence"}])
-NAMES = ["الدرر السنية", "OpenStax Astronomy 2e", "صحيح البخاري"]
+NAMES = ["الدرر السنية", "U.S. Department of Energy, DOE Explains: Cosmology", "صحيح البخاري"]
 
 GOOD = ("سؤالك في محله وكثير يسأله. العلم اليوم يرجّح أن للكون بداية زمنية، وهذه نظرية راجحة، "
         "قبل نحو 13.8 مليار سنة.\nوالعقل يقول إن ما له بداية لا بد له من موجد، قال تعالى {{q:52:35}}. "
