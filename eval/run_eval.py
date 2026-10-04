@@ -19,10 +19,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from app import arabic, guards, limits, main, pipeline, quran, router  # noqa: E402
+from app import arabic, guards, kb, limits, main, pipeline, quran, router  # noqa: E402
 from app.schemas import ChatContext, ChatRequest, RecentItem  # noqa: E402
 
-SETS = {"critical": ROOT / "eval" / "cases" / "critical.jsonl", "dev": ROOT / "eval" / "cases" / "dev.jsonl"}
+SETS = {"critical": ROOT / "eval" / "cases" / "critical.jsonl", "dev": ROOT / "eval" / "cases" / "dev.jsonl",
+        "drafts": ROOT / "eval" / "cases" / "dev_drafts.jsonl"}
+DRAFT_DIRS = ROOT / "private" / "drafts"  # team-only drafts awaiting review (never committed)
 IJAZ = ("الإعجاز العلمي", "سبق القرآن", "أثبت العلم")
 CONSENSUS = ("أجمع العلماء", "اتفق العلماء", "بإجماع")
 PENDING: set[str] = set()
@@ -163,7 +165,8 @@ async def run_case(case: dict, settings, sleep: float) -> dict:
     failed = []
     if final.kind not in case["kinds"]:
         failed.append(f"kind:{final.kind}")
-    if case.get("entry") and final.kind == "answer" and final.entry_id != case["entry"]:
+    accepted = case.get("entries") or ([case["entry"]] if case.get("entry") else [])
+    if accepted and final.kind == "answer" and final.entry_id not in accepted:
         failed.append(f"entry:{final.entry_id}")
     pending = []
     for spec in case.get("checks", []):
@@ -173,11 +176,32 @@ async def run_case(case: dict, settings, sleep: float) -> dict:
             pending.append(spec)
         elif not result:
             failed.append(spec)
-    return {"id": case["id"], "category": case.get("category"), "kind": final.kind, "entry_id": final.entry_id,
+    return {"id": case["id"], "category": case.get("category"), "expected": accepted, "kind": final.kind,
+            "entry_id": final.entry_id,
             "layer": final.layer, "degraded": final.degraded, "llm_calls": calls,
             "chat": any(b["type"] == "chat" for b in final.blocks),
             "passed": not failed, "failed_checks": failed, "pending_checks": pending,
             "_text": plain_text(final)}
+
+
+def load_drafts() -> list[dict]:
+    """Team-only: every valid draft (content/kb.json and private/drafts/*/) treated as approved, in memory."""
+    entries = {e["id"]: e for e in kb.read_all()}
+    for path in sorted(DRAFT_DIRS.glob("*/*.json")):
+        for e in json.loads(path.read_text(encoding="utf-8")):
+            entries[e["id"]] = e
+    out = []
+    for e in entries.values():
+        try:
+            e = kb.normalize_refs(e)
+        except ValueError:
+            continue
+        if e.get("status") == "rejected" or kb.validate_entry(e)[0]:
+            continue
+        e = {**e, "status": "approved"}
+        e["review"] = {"reviewer": "معاينة مسودة", "reviewed_at": "", "note": "", "approved_hash": kb.approved_hash(e)}
+        out.append(e)
+    return out
 
 
 async def main_async(args) -> int:
@@ -187,6 +211,11 @@ async def main_async(args) -> int:
     settings = main.settings
     if args.system == "lexical":
         settings = dataclasses.replace(settings, llm_enabled=False)
+    if args.routing_only:
+        settings = dataclasses.replace(settings, converse_enabled=False, framing_enabled=False)
+    if args.drafts:
+        pipeline.load(load_drafts())
+        print("drafts loaded as approved, in memory:", len(pipeline.STATE.entries))
     # The evaluation is not a visitor: no rate limits, and the daily model budget does not stop it.
     limits.LIMITER.check = lambda *a, **k: 0
     limits.DAILY_LLM_CALLS = 10 ** 6
@@ -225,6 +254,8 @@ def main_cli() -> int:
     parser.add_argument("--runs", type=int, default=1)
     parser.add_argument("--sleep", type=float, default=6.0, help="seconds before each message (free-tier rate limit)")
     parser.add_argument("--only", help="comma-separated case ids")
+    parser.add_argument("--drafts", action="store_true", help="team-only: load valid drafts as approved, in memory")
+    parser.add_argument("--routing-only", action="store_true", help="skip the dialogue and framing calls")
     return asyncio.run(main_async(parser.parse_args()))
 
 
