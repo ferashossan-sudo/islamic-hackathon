@@ -106,22 +106,27 @@ def _numbers(text: str) -> set[str]:
 
 def check_reply(reply: str, entry: dict, source_names: list[str]) -> bool:
     """G13. False drops the conversational reply; the approved card is then shown alone."""
+    return reply_problem(reply, entry, source_names) is None
+
+
+def reply_problem(reply: str, entry: dict, source_names: list[str]) -> str | None:
+    """The first G13 rule the reply breaks, as a short code for the log (no content), or None."""
     text = (reply or "").strip()
     if not REPLY_MIN_CHARS <= len(text) <= REPLY_MAX_CHARS:
-        return False
+        return "length"
     if "﴾" in text or "﴿" in text:
-        return False
+        return "brackets"
     allowed_verses = {key for ref in entry.get("verses", []) for key in quran.parse_ref(ref)}
     hadith_count = len(entry.get("hadiths", []))
     for kind, value in _PLACEHOLDER.findall(text):
         if kind == "q":
             try:
                 if not set(quran.parse_ref(value)) <= allowed_verses:
-                    return False
+                    return "verse_placeholder"
             except ValueError:
-                return False
+                return "verse_placeholder"
         if kind == "h" and not (value.isdigit() and 1 <= int(value) <= hadith_count):
-            return False
+            return "hadith_placeholder"
     plain = _PLACEHOLDER.sub(" ", text)
     material = " ".join(str(x) for x in [
         entry.get("question"), entry.get("summary"), entry.get("explain_simple"), entry.get("body"),
@@ -141,16 +146,16 @@ def check_reply(reply: str, entry: dict, source_names: list[str]) -> bool:
         if f" {' '.join(gram)} " in material_norm:
             continue  # the reviewed entry itself uses these words in its own text
         if gram in _mushaf_fourgrams() or gram in hadith_grams:
-            return False
+            return "verse_or_hadith_words"
     # The Prophet ﷺ is mentioned only if the entry mentions him, and his words only through a hadith placeholder.
     prophet = ("رسول الله", "النبي", "ﷺ")
     if any(m in plain for m in prophet) and not (entry.get("hadiths") or any(m in material for m in prophet)):
-        return False
+        return "prophet_mention"
     if ("قال رسول الله" in plain or "قال النبي" in plain) and not any(k == "h" for k, _ in _PLACEHOLDER.findall(text)):
-        return False
+        return "prophet_words"
     # Every number, name, source and guarded claim must already be in the approved entry.
     if not _numbers(plain) <= _numbers(material):
-        return False
+        return "number"
     material_stems = set().union(*(_stems(w) for w in arabic.words(material))) if material.strip() else set()
     plain_stems = set().union(*(_stems(w) for w in plain_words)) if plain_words else set()
     for phrase in GUARDED_PHRASES + KNOWN_NAMES + tuple(source_names):
@@ -159,12 +164,12 @@ def check_reply(reply: str, entry: dict, source_names: list[str]) -> bool:
             continue
         if len(words) == 1:  # single words also match with an attached prefix (وحرام، بالإجماع...)
             if words[0] in plain_stems and words[0] not in material_stems:
-                return False
+                return "phrase:" + phrase
             continue
         p = " " + " ".join(words) + " "
         if p in plain_norm and p not in material_norm:
-            return False
+            return "phrase:" + phrase
     for word in _LATIN_WORD.findall(plain):
         if word.lower() not in material.lower():
-            return False
-    return True
+            return "latin"
+    return None

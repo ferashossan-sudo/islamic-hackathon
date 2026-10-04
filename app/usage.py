@@ -7,7 +7,7 @@ RIYADH = timezone(timedelta(hours=3))
 
 ALLOWED_KEYS = frozenset({
     "event", "path", "status", "ms", "kind", "degraded",
-    "call", "model", "in", "out", "cache_read", "cache_write", "usd", "ok",
+    "call", "model", "in", "out", "cache_read", "cache_write", "usd", "ok", "reason",
 })
 
 

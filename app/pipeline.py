@@ -269,7 +269,9 @@ async def attach_chat(response: ChatResponse, message: str, req: ChatRequest, s:
     reply, feedback, ok = None, None, False
     for _attempt in range(2):
         reply = await converse.compose_reply(message, history, entry, s, feedback)
-        if reply is None or not guards.check_reply(reply, entry, STATE.source_names):
+        problem = "no_reply" if reply is None else guards.reply_problem(reply, entry, STATE.source_names)
+        if problem:
+            log_event(event="g13", reason=problem)
             break
         unsupported = await converse.unsupported_claims(reply, entry, s)  # G14
         if unsupported == []:

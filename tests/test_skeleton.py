@@ -107,3 +107,8 @@ def test_no_message_content_in_logs(capsys):
 def test_draft_preview_is_off_unless_dev_and_flag():
     assert main.PREVIEW_DRAFTS is False
     assert client.get("/api/config").json()["preview_drafts"] is False
+
+
+def test_head_requests_for_uptime_monitors():
+    assert client.head("/").status_code == 200
+    assert client.head("/health").status_code == 200

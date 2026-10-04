@@ -67,12 +67,12 @@ async def invalid_request(request: Request, exc: RequestValidationError):
     return JSONResponse(body.model_dump(), status_code=422)
 
 
-@app.get("/", response_class=HTMLResponse)
+@app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
 async def index() -> HTMLResponse:
     return HTMLResponse(INDEX_HTML)
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 async def health() -> dict:
     return {"ok": True, "version": settings.version, "approved": len(APPROVED), "kb_hash": KB_HASH,
             "llm": router.health(settings), "provider": settings.router_provider if settings.router_key else None}
