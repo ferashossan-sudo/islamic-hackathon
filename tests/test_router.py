@@ -10,7 +10,8 @@ from app import main, pipeline, router
 from app.schemas import ChatContext, ChatRequest, RecentItem
 from tests.test_lexical_line import SAMPLE
 
-SETTINGS = dataclasses.replace(main.settings, llm_enabled=True, router_provider="gemini", gemini_api_key="test-key")
+SETTINGS = dataclasses.replace(main.settings, llm_enabled=True, router_provider="gemini", gemini_api_key="test-key",
+                               converse_enabled=False)
 
 
 def decision(**overrides):

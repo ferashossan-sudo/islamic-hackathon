@@ -20,6 +20,9 @@ class Settings:
     anthropic_api_key: str
     router_timeout_s: float
     router_retry_timeout_s: float
+    converse_model: str
+    converse_enabled: bool
+    converse_timeout_s: float
     confidence_min: str
     llm_enabled: bool
     framing_enabled: bool
@@ -38,9 +41,13 @@ class Settings:
 def load_settings() -> Settings:
     commit = os.environ.get("RENDER_GIT_COMMIT", "")
     provider = os.environ.get("ROUTER_PROVIDER", "gemini").strip().lower()
+    router_model = os.environ.get("ROUTER_MODEL", "").strip() or DEFAULT_MODELS.get(provider, "")
     return Settings(
         router_provider=provider,
-        router_model=os.environ.get("ROUTER_MODEL", "").strip() or DEFAULT_MODELS.get(provider, ""),
+        router_model=router_model,
+        converse_model=os.environ.get("CONVERSE_MODEL", "").strip() or router_model,
+        converse_enabled=_flag("CONVERSE_ENABLED", True),
+        converse_timeout_s=float(os.environ.get("CONVERSE_TIMEOUT_S", "15")),
         gemini_api_key=os.environ.get("GEMINI_API_KEY", ""),
         anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
         router_timeout_s=float(os.environ.get("ROUTER_TIMEOUT_S", "8")),

@@ -83,3 +83,88 @@ def check_framing(framing: str, message: str, source_names: list[str], hadith_te
     for w in arabic.words(message):
         allowed |= _stems(w)
     return all(_stems(w) & allowed for w in words)
+
+
+# --- G13: the conversational reply may use only the approved entry ---
+
+_PLACEHOLDER = re.compile(r"\{\{(q|h):([^}]+)\}\}")
+_NUMBER = re.compile(r"\d+(?:[.,]\d+)?")
+_LATIN_WORD = re.compile(r"[A-Za-z][A-Za-z0-9.\-]*")
+REPLY_MIN_CHARS, REPLY_MAX_CHARS = 40, 1400
+# Claims the reply may not make unless the approved entry itself makes them.
+GUARDED_PHRASES = ("أثبت العلم", "العلم أثبت", "سبق القرآن", "الإعجاز العلمي", "حقيقة علمية", "أجمع العلماء",
+                   "اتفق العلماء", "بإجماع", "حلال", "حرام", "يجوز", "لا يجوز", "واجب", "فتوى", "كفر", "رواه")
+KNOWN_NAMES = ("ابن تيمية", "ابن القيم", "الغزالي", "ابن كثير", "القرطبي", "الطبري", "البغوي", "السعدي", "الشنقيطي",
+               "ابن باز", "ابن عثيمين", "الفوزان", "الألباني", "ابن حجر", "النووي", "ابن عباس", "مجاهد", "قتادة",
+               "عكرمة", "داروين", "أينشتاين", "هوكينج", "هوكنغ", "نيوتن", "هابل", "لوميتر", "النجار", "زغلول",
+               "البخاري", "صحيح مسلم", "الترمذي", "أبو داود", "النسائي", "ابن ماجه", "اللجنة الدائمة")
+
+
+def _numbers(text: str) -> set[str]:
+    return set(_NUMBER.findall(arabic.normalize(text)))
+
+
+def check_reply(reply: str, entry: dict, source_names: list[str]) -> bool:
+    """G13. False drops the conversational reply; the approved card is then shown alone."""
+    text = (reply or "").strip()
+    if not REPLY_MIN_CHARS <= len(text) <= REPLY_MAX_CHARS:
+        return False
+    if "﴾" in text or "﴿" in text:
+        return False
+    allowed_verses = {key for ref in entry.get("verses", []) for key in quran.parse_ref(ref)}
+    hadith_count = len(entry.get("hadiths", []))
+    for kind, value in _PLACEHOLDER.findall(text):
+        if kind == "q":
+            try:
+                if not set(quran.parse_ref(value)) <= allowed_verses:
+                    return False
+            except ValueError:
+                return False
+        if kind == "h" and not (value.isdigit() and 1 <= int(value) <= hadith_count):
+            return False
+    plain = _PLACEHOLDER.sub(" ", text)
+    material = " ".join(str(x) for x in [
+        entry.get("question"), entry.get("summary"), entry.get("explain_simple"), entry.get("body"),
+        *[s["claim"] for s in entry.get("science", [])],
+        *[t["mufassir"] + " " + t["summary"] for t in entry.get("tafsir", [])],
+        *[h["text"] for h in entry.get("hadiths", [])], entry["source"]["name"]])
+    material_norm = " " + " ".join(arabic.words(material)) + " "
+    plain_words = arabic.words(plain)
+    plain_norm = " " + " ".join(plain_words) + " "
+    # No verse or hadith words written by the model (four consecutive words).
+    hadith_grams = set()
+    for h in entry.get("hadiths", []):
+        hw = arabic.words(h["text"])
+        hadith_grams.update(tuple(hw[i:i + 4]) for i in range(len(hw) - 3))
+    for i in range(len(plain_words) - 3):
+        gram = tuple(plain_words[i:i + 4])
+        if f" {' '.join(gram)} " in material_norm:
+            continue  # the reviewed entry itself uses these words in its own text
+        if gram in _mushaf_fourgrams() or gram in hadith_grams:
+            return False
+    # The Prophet ﷺ is mentioned only if the entry mentions him, and his words only through a hadith placeholder.
+    prophet = ("رسول الله", "النبي", "ﷺ")
+    if any(m in plain for m in prophet) and not (entry.get("hadiths") or any(m in material for m in prophet)):
+        return False
+    if ("قال رسول الله" in plain or "قال النبي" in plain) and not any(k == "h" for k, _ in _PLACEHOLDER.findall(text)):
+        return False
+    # Every number, name, source and guarded claim must already be in the approved entry.
+    if not _numbers(plain) <= _numbers(material):
+        return False
+    material_stems = set().union(*(_stems(w) for w in arabic.words(material))) if material.strip() else set()
+    plain_stems = set().union(*(_stems(w) for w in plain_words)) if plain_words else set()
+    for phrase in GUARDED_PHRASES + KNOWN_NAMES + tuple(source_names):
+        words = arabic.words(phrase)
+        if not words:
+            continue
+        if len(words) == 1:  # single words also match with an attached prefix (وحرام، بالإجماع...)
+            if words[0] in plain_stems and words[0] not in material_stems:
+                return False
+            continue
+        p = " " + " ".join(words) + " "
+        if p in plain_norm and p not in material_norm:
+            return False
+    for word in _LATIN_WORD.findall(plain):
+        if word.lower() not in material.lower():
+            return False
+    return True

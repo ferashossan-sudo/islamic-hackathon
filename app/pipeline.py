@@ -2,7 +2,7 @@
 import re
 from dataclasses import dataclass, field
 
-from app import arabic, compose, distress, guards, quran, router, texts
+from app import arabic, compose, converse, distress, guards, quran, router, texts
 from app.config import Settings
 from app.lexical import LexicalIndex
 from app.schemas import ChatRequest, ChatResponse
@@ -250,6 +250,45 @@ async def handle(req: ChatRequest, s: Settings) -> tuple[int, ChatResponse]:
     return 200, response
 
 
+def _history_text(reply: str, entry: dict) -> str:
+    """The reply as plain text for the browser's short history (placeholders become references)."""
+    def sub(match):
+        kind, value = match.groups()
+        return f"[{quran.label(value)}]" if kind == "q" else "[حديث]"
+    return compose.CHAT_PLACEHOLDER.sub(sub, reply)
+
+
+async def attach_chat(response: ChatResponse, message: str, req: ChatRequest, s: Settings) -> ChatResponse:
+    """The conversational layer over an approved answer (G13). On any failure the card stands alone."""
+    if response.kind != "answer" or response.degraded or not response.entry_id:
+        return response
+    if any(b.get("key") == "notice_repeat" for b in response.blocks):
+        return response
+    entry = STATE.entries[response.entry_id]
+    history = [h.model_dump() for h in req.history]
+    reply, feedback, ok = None, None, False
+    for _attempt in range(2):
+        reply = await converse.compose_reply(message, history, entry, s, feedback)
+        if reply is None or not guards.check_reply(reply, entry, STATE.source_names):
+            break
+        unsupported = await converse.unsupported_claims(reply, entry, s)  # G14
+        if unsupported == []:
+            ok = True
+            break
+        if unsupported is None:
+            break
+        feedback = unsupported
+    log_event(event="converse", ok=ok)
+    if not ok:
+        return response
+    chat = {"type": "chat", "label": texts.text("badge_chat"), "hint": texts.text("badge_chat_hint"),
+            "toggle": texts.text("chat_card_toggle"), "segments": compose.chat_segments(reply, entry),
+            "history_text": _history_text(reply, entry)}
+    compose.final_check([chat], entry)
+    response.blocks = [chat] + [b for b in response.blocks if b["type"] != "framing"]
+    return response
+
+
 async def _respond(message: str, req: ChatRequest, s: Settings) -> ChatResponse:
     if not STATE.entries:
         # No approved entries yet: the router is skipped and the fixed abstention is returned.
@@ -258,6 +297,6 @@ async def _respond(message: str, req: ChatRequest, s: Settings) -> ChatResponse:
         prev = STATE.entries.get(req.context.prev_entry_id or "")
         decision = await router.decide(message, prev, list(STATE.entries.values()), s)
         if decision is not None:
-            return model_decision(decision, message, prev, req, s)
+            return await attach_chat(model_decision(decision, message, prev, req, s), message, req, s)
     # Degraded mode: model disabled, offline mode requested, or the call failed.
     return lexical_decision(message, s, req)

@@ -362,3 +362,23 @@ main {
 }
 
 .tag-framing { margin-inline-end: 4px; }
+
+/* Conversational reply above the approved card */
+.block-chat p { margin: 0 0 10px; }
+.tag-chat { margin-block-end: 6px; }
+.hadith-inline { font-weight: 600; }
+
+.card-details {
+  margin-block-start: 10px;
+  border-block-start: 1px solid var(--border);
+  padding-block-start: 6px;
+}
+
+.card-details > summary {
+  min-block-size: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+}

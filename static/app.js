@@ -15,6 +15,7 @@
   let turn = 0;
   let busy = false;
   let sentMessages = [];  // normalized, for repeat_count only; never sent to the server
+  let history = [];  // last turns, sent with each message so the conversation can continue; never stored
   const REPEAT_SIMILARITY = 0.8;
 
   // Same rule as app/arabic.py: strip marks and tatweel, unify letter forms, keep words.
@@ -147,7 +148,44 @@
 
   let degradedShown = false;
 
+  // The conversational reply: text, verses from the mushaf, and hadiths from the approved entry.
+  function chatInto(parent, segments) {
+    let paragraph = el("p");
+    parent.append(paragraph);
+    const notes = [];
+    (segments || []).forEach((seg) => {
+      if (seg.type === "verse") {
+        paragraph.append(el("span", "verse-inline", "﴿" + seg.text + "﴾"), " ", el("bdi", "verse-ref", "[" + seg.label + "]"));
+      } else if (seg.type === "hadith") {
+        paragraph.append(el("span", "hadith-inline", "«" + seg.text + "»"));
+        notes.push(seg);
+      } else {
+        String(seg.text).split("\n").forEach((part, i) => {
+          if (i > 0) {
+            paragraph = el("p");
+            parent.append(paragraph);
+          }
+          if (part) paragraph.append(part);
+        });
+      }
+    });
+    parent.querySelectorAll("p").forEach((p) => { if (!p.textContent.trim()) p.remove(); });
+    notes.forEach((h) => {
+      const line = el("p", "hint", h.line + " · ");
+      line.append(externalLink(label("verify", "تحقق من المصدر"), h.url));
+      parent.append(line);
+    });
+  }
+
   const renderers = {
+    chat(card, b) {
+      const box = el("div", "block block-chat");
+      const badge = el("span", "tag tag-chat", b.label);
+      badge.title = b.hint || "";
+      box.append(badge);
+      chatInto(box, b.segments);
+      card.append(box);
+    },
     framing(card, b) {
       const box = el("p", "block block-framing");
       const badge = el("span", "tag tag-framing", b.label);
@@ -283,9 +321,19 @@
       if (text) card.append(el("p", degradedShown ? "tag tag-degraded" : "block block-notice", text));
       degradedShown = true;
     }
-    (data.blocks || []).forEach((block) => {
+    const blocks = data.blocks || [];
+    let target = card;
+    blocks.forEach((block, i) => {
       const render = renderers[block.type];
-      if (render) render(card, block);
+      if (!render) return;
+      render(target, block);
+      if (i === 0 && block.type === "chat") {
+        // The approved answer and its sources stay one tap away under the conversational reply.
+        const details = el("details", "card-details");
+        details.append(el("summary", null, block.toggle || "الإجابة المراجعة ومصادرها"));
+        card.append(details);
+        target = details;
+      }
     });
     log.append(card);
     scrollToEnd(card);
@@ -327,12 +375,17 @@
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, sid: sessionId(), turn: turn, mode: mode, context: context }),
+        body: JSON.stringify({ message: text, sid: sessionId(), turn: turn, mode: mode, context: context,
+                               history: history.slice(-4) }),
       });
       const data = await response.json();
       pending.remove();
       if (response.ok) {
         sentMessages.push(normalized);
+        const chat = (data.blocks || []).find((b) => b.type === "chat");
+        history.push({ role: "user", text: text.slice(0, 600) });
+        if (chat) history.push({ role: "assistant", text: chat.history_text.slice(0, 600) });
+        history = history.slice(-4);
         addUserMessage(text);
         input.value = "";
         updateCounter();
@@ -390,6 +443,7 @@
     context.recent = [];
     context.repeat_count = 0;
     sentMessages = [];
+    history = [];
     turn = 0;
     input.focus();
   });

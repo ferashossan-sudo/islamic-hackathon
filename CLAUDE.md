@@ -8,7 +8,7 @@ An anonymous Arabic chat assistant that answers scientific and existential quest
 
 **The model SELECTS; it does not WRITE content.**
 - Every verse, hadith, scientific fact and source name shown to the user comes from an approved KB entry, the local mushaf file, or an approved fixed text.
-- The only model-generated text shown is the `framing` sentence, labeled «صياغة المساعد», and it is dropped unless it passes G5.
+- The model-generated text shown is (a) the dialogue reply, labeled «حوار المساعد، مبني على الإجابة المراجعة», written ONLY from one approved entry, with verses and hadiths as placeholders filled by the server, kept only if it passes G13 (deterministic: numbers, names, guarded claims, verse/hadith words, placeholders) and G14 (a strict second call that lists unsupported statements; one retry), with the approved card one tap below; or (b) the `framing` sentence (G5). Anything that fails is dropped and the approved card is shown alone.
 - No matching approved entry → explicit abstention + referral. When in doubt: abstain, refer, or show the approved answer alone.
 
 ## Rules

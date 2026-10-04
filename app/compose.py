@@ -2,6 +2,8 @@
 
 Nothing here comes from the model. The framing sentence, when present, is added by the pipeline after G5.
 """
+import re
+
 from app import kb, quran, texts
 
 
@@ -14,6 +16,30 @@ def segments(text: str) -> list[dict]:
         out.append(verse_item(match.group(1)))
         pos = match.end()
     if pos < len(text or ""):
+        out.append({"type": "text", "text": text[pos:]})
+    return out
+
+
+CHAT_PLACEHOLDER = re.compile(r"\{\{(q|h):([^}]+)\}\}")
+
+
+def chat_segments(text: str, entry: dict) -> list[dict]:
+    """The model's reply split into text, verse (from the mushaf) and hadith (from the entry) segments."""
+    out, pos = [], 0
+    hadiths = entry.get("hadiths", [])
+    for match in CHAT_PLACEHOLDER.finditer(text):
+        if match.start() > pos:
+            out.append({"type": "text", "text": text[pos:match.start()]})
+        kind, value = match.groups()
+        if kind == "q":
+            out.append(verse_item(value))
+        else:
+            h = hadiths[int(value) - 1]
+            out.append({"type": "hadith", "text": h["text"], "url": h["url"],
+                        "line": _fill(texts.text("hadith_attribution_line"), المصدر=h["source"], الرقم=str(h["number"]),
+                                      الدرجة=h["grade"], المحدث=h["grader"])})
+        pos = match.end()
+    if pos < len(text):
         out.append({"type": "text", "text": text[pos:]})
     return out
 
@@ -76,9 +102,13 @@ def final_check(blocks: list[dict], entry: dict) -> None:
 
     Raises AssertionError; the pipeline turns that into the fail-closed card (G12).
     """
+    hadith_texts = {h["text"] for h in entry.get("hadiths", [])}
     for block in blocks:
+        for seg in block.get("segments", []):
+            if seg.get("type") == "hadith":
+                assert seg["text"] in hadith_texts, "chat hadith"
         verses = [s for s in block.get("summary", []) + block.get("body", []) + (block.get("explain_simple") or [])
-                  if s.get("type") == "verse"] + block.get("verses", [])
+                  + block.get("segments", []) if s.get("type") == "verse"] + block.get("verses", [])
         for verse in verses:
             assert verse["text"] == " ".join(v.text for v in quran.lookup(verse["ref"])), verse["ref"]
         for shown, stored in zip(block.get("hadiths", []), entry.get("hadiths", [])):

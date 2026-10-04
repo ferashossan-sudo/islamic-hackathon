@@ -18,6 +18,13 @@ class ChatContext(BaseModel):
     repeat_count: int = Field(default=0, ge=0, le=50)
 
 
+class HistoryItem(BaseModel):
+    """The last turns, sent by the browser so the conversation can continue. Never stored or logged."""
+    model_config = ConfigDict(extra="ignore")
+    role: Literal["user", "assistant"]
+    text: str = Field(max_length=2000)
+
+
 class ChatRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
     # Hard cap only. The 800-character limit is checked after distress detection,
@@ -27,6 +34,7 @@ class ChatRequest(BaseModel):
     turn: int = Field(default=1, ge=1, le=1000)
     mode: Literal["", "offline"] = ""
     context: ChatContext = Field(default_factory=ChatContext)
+    history: list[HistoryItem] = Field(default_factory=list, max_length=4)
 
 
 Kind = Literal["answer", "abstain", "refer", "distress", "limit", "non_arabic", "smalltalk"]
