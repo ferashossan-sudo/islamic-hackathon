@@ -140,3 +140,44 @@ def test_no_chat_in_degraded_mode(fakes):
     req = ChatRequest(message="هل الكون جاء صدفة؟", mode="offline")
     r = asyncio.run(pipeline.handle(req, SETTINGS))[1]
     assert r.degraded and not any(b["type"] == "chat" for b in r.blocks)
+
+
+@pytest.mark.parametrize("bad, code", [
+    (GOOD.replace("وقال النبي ﷺ {{h:1}}.", "وقال النبي ﷺ {{h:1}} إن كل مولود يولد على الفطرة."), "verse_or_hadith_words"),
+    (GOOD.replace("قال تعالى {{q:52:35}}", "فخلقوا من غير شيء كما يسأل القرآن {{q:52:35}}"), "verse_or_hadith_words"),
+    (GOOD.replace("{{q:52:35}}", "{{q:52:35}} و{{q:52:36}}"), "placeholders"),
+])
+def test_g13_catches_restated_texts_and_walls_of_text(bad, code):
+    entry = {**ENTRY, "verses": ["52:35", "52:36"]}
+    assert guards.reply_problem(bad, entry, NAMES) == code
+
+
+def test_g13_no_placeholders_when_the_person_asked_for_reason_only():
+    assert guards.reply_problem(GOOD, ENTRY, NAMES, message="أقنعني بالعقل بدون دين") == "reason_only"
+    assert guards.reply_problem(GOOD, ENTRY, NAMES, message="هل الكون صدفة؟") is None
+
+
+def test_g13_a_consensus_word_the_entry_itself_uses_is_allowed():
+    entry = {**ENTRY, "body": ENTRY["body"] + " وينقل العلماء الإجماع على ذلك."}
+    reply = GOOD.replace("وش رأيك،", "وهذا بالإجماع كما ينقل العلماء. وش رأيك،")
+    assert guards.reply_problem(reply, entry, NAMES) is None
+    assert guards.reply_problem(reply, ENTRY, NAMES) == "phrase:بإجماع"
+
+
+def test_a_flattering_opening_gets_one_rewrite(fakes):
+    fakes["replies"] = ["سؤالك مهم ويعكس حرصك. " + GOOD, GOOD]
+    fakes["verdicts"] = [[]]
+    r = ask("هل الكون صدفة؟")
+    assert r.blocks[0]["type"] == "chat"
+    assert "praise" in fakes["payloads"][1]["previous_reply_problems"]
+
+
+def test_a_push_back_whose_dialogue_is_dropped_gets_the_next_layer_not_the_same_card(fakes):
+    from app.schemas import ChatContext, RecentItem
+    fakes["replies"] = [GOOD + " وقد أثبت العلم ذلك."] * 3
+    fakes["verdicts"] = []
+    context = ChatContext(prev_entry_id="kawn-universe-x",
+                          recent=[RecentItem(entry_id="kawn-universe-x", kind="answer", layer="summary")])
+    req = ChatRequest(message="مو مقتنع، الكون صدفة", context=context)
+    r = asyncio.run(pipeline.handle(req, SETTINGS))[1]
+    assert r.layer != "summary" and r.blocks[0]["type"] != "chat"

@@ -313,7 +313,11 @@ G13_FEEDBACK = {
     "verse_placeholder": "You used a verse reference that is not in the material. Use only the material's verses.",
     "hadith_placeholder": "You used a hadith number that is not in the material. Use only {{h:n}} from the material.",
     "verse_or_hadith_words": "You wrote words of a verse or hadith yourself. Refer to them only with the "
-                             "{{q:...}} or {{h:n}} placeholders.",
+                             "{{q:...}} or {{h:n}} placeholders, and say what they show in your own words BEFORE "
+                             "the placeholder; never restate them after it.",
+    "placeholders": "Too many verses and hadiths: use at most two placeholders, and at most one hadith.",
+    "reason_only": "The person asked to be convinced by reason only: use no verse or hadith placeholder; you may "
+                   "say in one short line that the answer also has its sharia evidence for whoever wants it.",
     "prophet_mention": "Do not attribute anything to the Prophet ﷺ unless you use an {{h:n}} placeholder.",
     "prophet_words": "Do not quote the Prophet ﷺ in your own words. Use only an {{h:n}} placeholder.",
     "number": "You wrote a number that is not in the material. Remove it.",
@@ -327,24 +331,54 @@ def g13_feedback(problem: str) -> str:
     return G13_FEEDBACK.get(problem, "Keep strictly to the material.")
 
 
+# Soft style checks: one rewrite, never a reason to drop a reply that passed G13 and G14.
+FLATTERY = ("سؤالك مهم", "سؤال مهم جدا", "يعكس", "ينم عن", "يدل على حرصك", "أقدر حرصك", "تفكيرك النقدي",
+            "دليل على تفكيرك", "حرصك على")
+STYLE_FEEDBACK = {
+    "flattery": "Do not praise the person or describe their thinking or motives; open with one plain sentence "
+                "about the question itself.",
+    "repeated": "You repeated your previous reply. The person was not convinced: bring a different point from the "
+                "material, or say honestly that this approved answer has nothing more on that point.",
+}
+
+
+def style_problem(reply: str, history: list[dict]) -> str | None:
+    opening = arabic.normalize(reply[:140])
+    if any(arabic.normalize(p) in opening for p in FLATTERY):
+        return "flattery"
+    last = next((h["text"] for h in reversed(history) if h["role"] == "assistant"), "")
+    if last and arabic.trigram_similarity(last, reply) >= 0.5:
+        return "repeated"
+    return None
+
+
 async def attach_chat(response: ChatResponse, message: str, req: ChatRequest, s: Settings) -> ChatResponse:
-    """The conversational layer over an approved answer (G13). On any failure the card stands alone."""
+    """The conversational layer over an approved answer (G13, G14). On any failure the card stands alone."""
     if response.kind != "answer" or response.degraded or not response.entry_id:
         return response
     if any(b.get("key") == "notice_repeat" for b in response.blocks):
         return response
     entry = STATE.entries[response.entry_id]
     history = [h.model_dump() for h in req.history]
-    reply, feedback, ok = None, None, False
-    for _attempt in range(2):
+    reply, feedback, ok, styled, verified = None, None, False, False, 0
+    for attempt in range(1, 4):  # at most three replies and two verifier calls
         reply = await converse.compose_reply(message, history, entry, s, feedback)
-        problem = "no_reply" if reply is None else guards.reply_problem(reply, entry, STATE.source_names)
+        problem = "no_reply" if reply is None else guards.reply_problem(reply, entry, STATE.source_names, message)
         if problem:
             log_event(event="g13", reason=problem)
-            if problem == "no_reply":
+            if problem == "no_reply" or attempt == 3:
                 break
-            feedback = [g13_feedback(problem)]  # one rewrite; the second reply passes the same checks
+            feedback = [g13_feedback(problem)]
             continue
+        style = None if styled or attempt == 3 else style_problem(reply, history)
+        if style:
+            styled = True
+            log_event(event="g13", reason="style:" + style)
+            feedback = [STYLE_FEEDBACK[style]]
+            continue
+        if verified == 2:
+            break
+        verified += 1
         unsupported = await converse.unsupported_claims(reply, entry, s)  # G14
         if unsupported == []:
             ok = True
@@ -354,6 +388,8 @@ async def attach_chat(response: ChatResponse, message: str, req: ChatRequest, s:
         feedback = [f"A statement the material does not support: {claim}" for claim in unsupported]
     log_event(event="converse", ok=ok)
     if not ok:
+        if response.layer == "summary" and answered_before(entry["id"], req):
+            return _followup(entry, req, s)  # a push-back answered with the same card again would feel like a wall
         return response
     chat = {"type": "chat", "label": texts.text("badge_chat"), "hint": texts.text("badge_chat_hint"),
             "toggle": texts.text("chat_card_toggle"), "segments": compose.chat_segments(reply, entry),

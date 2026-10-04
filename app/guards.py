@@ -35,6 +35,32 @@ def _mushaf_fourgrams() -> frozenset[tuple[str, ...]]:
     return frozenset(grams)
 
 
+def _core(word: str) -> str:
+    """The word without its attached prefixes (فكأنما → كأنما → أنما), so a verse quoted with a different prefix
+    («كأنما قتل الناس جميعا» for «فكأنما قتل الناس جميعا») is still recognized."""
+    changed = True
+    while changed:
+        changed = False
+        for prefix in _PREFIXES:
+            if word.startswith(prefix) and len(word) - len(prefix) >= 3:
+                word, changed = word[len(prefix):], True
+                break
+    return word
+
+
+def _core_grams(words: list[str]) -> set[tuple[str, ...]]:
+    cores = [_core(w) for w in words]
+    return {tuple(cores[i:i + 4]) for i in range(len(cores) - 3)}
+
+
+@lru_cache(maxsize=1)
+def _mushaf_core_grams() -> frozenset[tuple[str, ...]]:
+    grams = set()
+    for verse in quran.verses().values():
+        grams |= _core_grams(arabic.words(verse.plain))
+    return frozenset(grams)
+
+
 def _stems(word: str) -> set[str]:
     """The word and its forms without one attached prefix (و، ف، ب، ل، ك، ال)."""
     forms = {word}
@@ -93,7 +119,9 @@ _LATIN_WORD = re.compile(r"[A-Za-z][A-Za-z0-9.\-]*")
 REPLY_MIN_CHARS, REPLY_MAX_CHARS = 40, 1400
 # Claims the reply may not make unless the approved entry itself makes them.
 GUARDED_PHRASES = ("أثبت العلم", "العلم أثبت", "سبق القرآن", "الإعجاز العلمي", "حقيقة علمية", "أجمع العلماء",
-                   "اتفق العلماء", "بإجماع", "حلال", "حرام", "يجوز", "لا يجوز", "واجب", "فتوى", "كفر", "رواه")
+                   "اتفق العلماء", "بإجماع", "أجمعوا", "مجمع عليه", "اتفق الفقهاء", "اتفق أهل العلم",
+                   "العلماء متفقون", "يقرر العلماء", "يقرر أهل العلم", "الحقيقة أن", "حلال", "حرام", "يجوز",
+                   "لا يجوز", "واجب", "فتوى", "كفر", "رواه")
 KNOWN_NAMES = ("ابن تيمية", "ابن القيم", "الغزالي", "ابن كثير", "القرطبي", "الطبري", "البغوي", "السعدي", "الشنقيطي",
                "ابن باز", "ابن عثيمين", "الفوزان", "الألباني", "ابن حجر", "النووي", "ابن عباس", "مجاهد", "قتادة",
                "عكرمة", "داروين", "أينشتاين", "هوكينج", "هوكنغ", "نيوتن", "هابل", "لوميتر", "النجار", "زغلول",
@@ -109,7 +137,12 @@ def check_reply(reply: str, entry: dict, source_names: list[str]) -> bool:
     return reply_problem(reply, entry, source_names) is None
 
 
-def reply_problem(reply: str, entry: dict, source_names: list[str]) -> str | None:
+REASON_ONLY = re.compile(r"بالعقل|بدون دين|بلا دين|بدون (?:آيات|ايات|احاديث|أحاديث|نصوص)|من غير دين|"
+                         r"لا تجيب.{0,25}(?:دين|آي|اي|حديث|احاديث|أحاديث)|منطق")
+MAX_PLACEHOLDERS, MAX_HADITHS = 2, 1
+
+
+def reply_problem(reply: str, entry: dict, source_names: list[str], message: str = "") -> str | None:
     """The first G13 rule the reply breaks, as a short code for the log (no content), or None."""
     text = (reply or "").strip()
     if not REPLY_MIN_CHARS <= len(text) <= REPLY_MAX_CHARS:
@@ -118,7 +151,8 @@ def reply_problem(reply: str, entry: dict, source_names: list[str]) -> str | Non
         return "brackets"
     allowed_verses = {key for ref in entry.get("verses", []) for key in quran.parse_ref(ref)}
     hadith_count = len(entry.get("hadiths", []))
-    for kind, value in _PLACEHOLDER.findall(text):
+    placeholders = _PLACEHOLDER.findall(text)
+    for kind, value in placeholders:
         if kind == "q":
             try:
                 if not set(quran.parse_ref(value)) <= allowed_verses:
@@ -127,25 +161,30 @@ def reply_problem(reply: str, entry: dict, source_names: list[str]) -> str | Non
                 return "verse_placeholder"
         if kind == "h" and not (value.isdigit() and 1 <= int(value) <= hadith_count):
             return "hadith_placeholder"
+    # Each placeholder expands to a whole verse or hadith: a few keep the reply a conversation, not a wall of text.
+    if len(set(placeholders)) > MAX_PLACEHOLDERS or len({v for k, v in placeholders if k == "h"}) > MAX_HADITHS:
+        return "placeholders"
+    if placeholders and message and REASON_ONLY.search(message):
+        return "reason_only"
     plain = _PLACEHOLDER.sub(" ", text)
-    material = " ".join(str(x) for x in [
+    # The entry's own prose (without its hadith texts) may share words with a verse; the model may reuse those.
+    prose = " ".join(str(x) for x in [
         entry.get("question"), entry.get("summary"), entry.get("explain_simple"), entry.get("body"),
         *[s["claim"] for s in entry.get("science", [])],
-        *[t["mufassir"] + " " + t["summary"] for t in entry.get("tafsir", [])],
-        *[h["text"] for h in entry.get("hadiths", [])], entry["source"]["name"]])
+        *[t["mufassir"] + " " + t["summary"] for t in entry.get("tafsir", [])], entry["source"]["name"]])
+    material = prose + " " + " ".join(h["text"] for h in entry.get("hadiths", []))
     material_norm = " " + " ".join(arabic.words(material)) + " "
     plain_words = arabic.words(plain)
     plain_norm = " " + " ".join(plain_words) + " "
-    # No verse or hadith words written by the model (four consecutive words).
+    # No verse or hadith words written by the model (four consecutive words, compared without prefixes).
     hadith_grams = set()
     for h in entry.get("hadiths", []):
-        hw = arabic.words(h["text"])
-        hadith_grams.update(tuple(hw[i:i + 4]) for i in range(len(hw) - 3))
-    for i in range(len(plain_words) - 3):
-        gram = tuple(plain_words[i:i + 4])
-        if f" {' '.join(gram)} " in material_norm:
+        hadith_grams |= _core_grams(arabic.words(h["text"]))
+    prose_grams = _core_grams(arabic.words(prose))
+    for gram in _core_grams(plain_words):
+        if gram in prose_grams:
             continue  # the reviewed entry itself uses these words in its own text
-        if gram in _mushaf_fourgrams() or gram in hadith_grams:
+        if gram in _mushaf_core_grams() or gram in hadith_grams:
             return "verse_or_hadith_words"
     # The Prophet ﷺ is mentioned only if the entry mentions him, and his words only through a hadith placeholder.
     prophet = ("رسول الله", "النبي", "ﷺ")
@@ -156,14 +195,14 @@ def reply_problem(reply: str, entry: dict, source_names: list[str]) -> str | Non
     # Every number, name, source and guarded claim must already be in the approved entry.
     if not _numbers(plain) <= _numbers(material):
         return "number"
-    material_stems = set().union(*(_stems(w) for w in arabic.words(material))) if material.strip() else set()
-    plain_stems = set().union(*(_stems(w) for w in plain_words)) if plain_words else set()
+    material_cores = {_core(w) for w in arabic.words(material)}
+    plain_cores = {_core(w) for w in plain_words}
     for phrase in GUARDED_PHRASES + KNOWN_NAMES + tuple(source_names):
         words = arabic.words(phrase)
         if not words:
             continue
-        if len(words) == 1:  # single words also match with an attached prefix (وحرام، بالإجماع...)
-            if words[0] in plain_stems and words[0] not in material_stems:
+        if len(words) == 1:  # single words also match with an attached prefix (وحرام، بالإجماع، الإجماع...)
+            if _core(words[0]) in plain_cores and _core(words[0]) not in material_cores:
                 return "phrase:" + phrase
             continue
         p = " " + " ".join(words) + " "
