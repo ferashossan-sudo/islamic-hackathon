@@ -1,0 +1,25 @@
+{
+  "note": "Domains allowed in KB links. Tafsir links must also be in tafsir_domains. NASA is excluded (its guidelines restrict use in AI products).",
+  "domains": [
+    "dorar.net",
+    "hadeethenc.com",
+    "islamhouse.com",
+    "quranenc.com",
+    "qurancomplex.gov.sa",
+    "quranpedia.net",
+    "terminologyenc.com",
+    "islamic-content.com",
+    "dawa.center",
+    "openstax.org",
+    "alifta.gov.sa",
+    "binbaz.org.sa",
+    "islamqa.info",
+    "shamela.ws",
+    "tafsir.net"
+  ],
+  "tafsir_domains": [
+    "dorar.net",
+    "shamela.ws",
+    "quranpedia.net"
+  ]
+}

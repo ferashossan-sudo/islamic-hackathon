@@ -7,7 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app import pipeline, texts
+from app import kb, pipeline, texts
 from app.config import load_settings
 from app.pages import render_index
 from app.schemas import ChatRequest, ChatResponse
@@ -16,6 +16,8 @@ from app.usage import log_event
 ROOT = Path(__file__).resolve().parent.parent
 settings = load_settings()
 INDEX_HTML = render_index(settings)
+APPROVED = kb.load_approved()  # refuses to start if an approved entry breaks a rule
+KB_HASH = kb.kb_hash(APPROVED)
 
 SECURITY_HEADERS = {
     "Content-Security-Policy": (
@@ -66,7 +68,7 @@ async def index() -> HTMLResponse:
 
 @app.get("/health")
 async def health() -> dict:
-    return {"ok": True, "version": settings.version, "approved": 0, "kb_hash": None,
+    return {"ok": True, "version": settings.version, "approved": len(APPROVED), "kb_hash": KB_HASH,
             "llm": "up" if settings.llm_enabled else "off"}
 
 
