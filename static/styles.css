@@ -367,6 +367,13 @@ main {
 .block-chat p { margin: 0 0 10px; }
 .tag-chat { margin-block-end: 6px; }
 .hadith-inline { font-weight: 600; }
+.hadith-long {
+  border-inline-start: 3px solid var(--border);
+  padding-inline-start: 10px;
+  margin: 0 0 10px;
+}
+.hadith-long summary { cursor: pointer; color: var(--accent); font-size: 0.9rem; }
+.hadith-long p { margin: 6px 0 0; }
 
 .card-details {
   margin-block-start: 10px;

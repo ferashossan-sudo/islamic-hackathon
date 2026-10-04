@@ -153,6 +153,8 @@
   let degradedShown = false;
 
   // The conversational reply: text, verses from the mushaf, and hadiths from the approved entry.
+  const LONG_HADITH = 280;
+
   function chatInto(parent, segments) {
     let paragraph = el("p");
     parent.append(paragraph);
@@ -161,7 +163,16 @@
       if (seg.type === "verse") {
         paragraph.append(el("span", "verse-inline", "﴿" + seg.text + "﴾"), " ", el("bdi", "verse-ref", "[" + seg.label + "]"));
       } else if (seg.type === "hadith") {
-        paragraph.append(el("span", "hadith-inline", "«" + seg.text + "»"));
+        if (seg.text.length > LONG_HADITH) {
+          // A long hadith folds below the sentence instead of breaking it; nothing is cut from its text.
+          const box = el("details", "hadith-long");
+          box.append(el("summary", "", label("hadith_full", "نص الحديث كاملاً")), el("p", "hadith-inline", "«" + seg.text + "»"));
+          parent.append(box);
+          paragraph = el("p");
+          parent.append(paragraph);
+        } else {
+          paragraph.append(el("span", "hadith-inline", "«" + seg.text + "»"));
+        }
         notes.push(seg);
       } else {
         String(seg.text).split("\n").forEach((part, i) => {
