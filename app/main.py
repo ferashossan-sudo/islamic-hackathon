@@ -1,4 +1,5 @@
 """FastAPI entry point: the page, the chat API, health, and security headers."""
+import os
 from pathlib import Path
 from time import perf_counter
 
@@ -17,6 +18,10 @@ ROOT = Path(__file__).resolve().parent.parent
 settings = load_settings()
 INDEX_HTML = render_index(settings)
 APPROVED = kb.load_approved()  # refuses to start if an approved entry breaks a rule
+# Local preview of drafts for the team only: never in production, and the page says so in a banner.
+PREVIEW_DRAFTS = settings.app_env == "dev" and os.environ.get("PREVIEW_DRAFTS", "").lower() == "true"
+if PREVIEW_DRAFTS:
+    APPROVED = kb.preview_drafts()
 KB_HASH = kb.kb_hash(APPROVED)
 pipeline.load(APPROVED)
 
@@ -81,6 +86,7 @@ async def config() -> dict:
         "labels": texts.pairs("ui_labels"),
         "texts": {key: texts.text(key) for key in ("network_error", "support_line", "degraded_badge", "degraded_mode")},
         "featured": [{"id": e["id"], "question": e["question"]} for e in APPROVED if e.get("featured")][:6],
+        "preview_drafts": PREVIEW_DRAFTS,
     }
 
 

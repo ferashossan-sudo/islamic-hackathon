@@ -47,6 +47,10 @@
     .then((r) => r.json())
     .then((c) => {
       config = c;
+      if (c.preview_drafts) {
+        const banner = el("p", "preview-banner", "معاينة داخلية لمسودات لم يعتمدها المراجع الشرعي بعد");
+        document.body.prepend(banner);
+      }
       renderFeatured(c.featured || []);
     })
     .catch(() => {});

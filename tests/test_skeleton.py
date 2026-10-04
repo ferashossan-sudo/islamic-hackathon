@@ -102,3 +102,8 @@ def test_no_message_content_in_logs(capsys):
     out = capsys.readouterr()
     assert marker not in out.out
     assert marker not in out.err
+
+
+def test_draft_preview_is_off_unless_dev_and_flag():
+    assert main.PREVIEW_DRAFTS is False
+    assert client.get("/api/config").json()["preview_drafts"] is False

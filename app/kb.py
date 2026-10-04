@@ -215,3 +215,17 @@ def kb_hash(entries: list[dict]) -> str | None:
         return None
     joined = "".join(e["review"]["approved_hash"] for e in sorted(entries, key=lambda e: e["id"]))
     return "sha256:" + hashlib.sha256(joined.encode("utf-8")).hexdigest()[:16]
+
+
+def preview_drafts(path: Path = KB_PATH) -> list[dict]:
+    """Team-only local preview: valid drafts treated as approved in memory. Nothing is written."""
+    out = []
+    for entry in read_all(path):
+        if entry.get("status") == "rejected" or validate_entry(entry)[0]:
+            continue
+        e = json.loads(json.dumps(entry))
+        e["status"] = "approved"
+        e["review"] = {"reviewer": "معاينة مسودة", "reviewed_at": "2026-10-04", "note": "",
+                       "approved_hash": approved_hash(e)}
+        out.append(e)
+    return out
