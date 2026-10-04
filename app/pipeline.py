@@ -291,6 +291,26 @@ def _history_text(reply: str, entry: dict) -> str:
     return compose.CHAT_PLACEHOLDER.sub(sub, reply)
 
 
+G13_FEEDBACK = {
+    "length": "The reply was too short or too long. Keep it to a few short paragraphs.",
+    "brackets": "Do not write verse brackets or quote verses. Use only the {{q:...}} placeholders from the material.",
+    "verse_placeholder": "You used a verse reference that is not in the material. Use only the material's verses.",
+    "hadith_placeholder": "You used a hadith number that is not in the material. Use only {{h:n}} from the material.",
+    "verse_or_hadith_words": "You wrote words of a verse or hadith yourself. Refer to them only with the "
+                             "{{q:...}} or {{h:n}} placeholders.",
+    "prophet_mention": "Do not attribute anything to the Prophet ﷺ unless you use an {{h:n}} placeholder.",
+    "prophet_words": "Do not quote the Prophet ﷺ in your own words. Use only an {{h:n}} placeholder.",
+    "number": "You wrote a number that is not in the material. Remove it.",
+    "latin": "You wrote a Latin word or name that is not in the material. Remove it.",
+}
+
+
+def g13_feedback(problem: str) -> str:
+    if problem.startswith("phrase:"):
+        return f"Do not use «{problem.split(':', 1)[1]}» or any name or claim that the material does not contain."
+    return G13_FEEDBACK.get(problem, "Keep strictly to the material.")
+
+
 async def attach_chat(response: ChatResponse, message: str, req: ChatRequest, s: Settings) -> ChatResponse:
     """The conversational layer over an approved answer (G13). On any failure the card stands alone."""
     if response.kind != "answer" or response.degraded or not response.entry_id:
@@ -305,14 +325,17 @@ async def attach_chat(response: ChatResponse, message: str, req: ChatRequest, s:
         problem = "no_reply" if reply is None else guards.reply_problem(reply, entry, STATE.source_names)
         if problem:
             log_event(event="g13", reason=problem)
-            break
+            if problem == "no_reply":
+                break
+            feedback = [g13_feedback(problem)]  # one rewrite; the second reply passes the same checks
+            continue
         unsupported = await converse.unsupported_claims(reply, entry, s)  # G14
         if unsupported == []:
             ok = True
             break
         if unsupported is None:
             break
-        feedback = unsupported
+        feedback = [f"A statement the material does not support: {claim}" for claim in unsupported]
     log_event(event="converse", ok=ok)
     if not ok:
         return response

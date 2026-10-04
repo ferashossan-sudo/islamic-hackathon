@@ -144,8 +144,8 @@ async def compose_reply(message: str, history: list[dict], entry: dict, s: Setti
     text = payload(message, history, entry)
     if feedback:
         data = json.loads(text)
-        data["previous_reply_problems"] = ("Your previous reply contained statements that are not in the material. "
-                                           "Rewrite it without them: " + " | ".join(feedback))
+        data["previous_reply_problems"] = ("Your previous reply was rejected for these reasons. "
+                                           "Rewrite it so that none of them applies: " + " | ".join(feedback))
         text = json.dumps(data, ensure_ascii=False)
     result = await _call("converse", call, s, text, Reply)
     return result.reply.strip() if result else None

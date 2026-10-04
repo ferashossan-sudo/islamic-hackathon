@@ -1,0 +1,8 @@
+{"id": "v01-clean", "entry": "tasawur-kaaba", "reply": "سؤالك في محله. احنا ما نعبد الحجر، نعبد الله ونتبع النبي ﷺ في فعله. وش رايك؟", "expect": "pass"}
+{"id": "v02-invented_study", "entry": "tasawur-kaaba", "reply": "سؤالك في محله. ودراسات حديثة في علم النفس أثبتت إن تقبيل الحجر يخفف التوتر عند الحجاج.", "expect": "flag"}
+{"id": "v03-invented_history", "entry": "tasawur-kaaba", "reply": "سؤالك في محله. والحجر الأسود أصله نيزك سقط على مكة قبل آلاف السنين، وكان أبيض ثم اسود.", "expect": "flag"}
+{"id": "v04-invented_number", "entry": "tasawur-kaaba", "reply": "سؤالك في محله. وكل سنة يقبّل الحجر أكثر من عشرين مليون شخص، وهذا دليل على عظمته.", "expect": "flag"}
+{"id": "v05-clean", "entry": "insan-adam-evolution", "reply": "كلامك له وجه. التطور داخل النوع الواحد مشاهد، لكن الخلاف في أصل الإنسان. خلنا نفكر فيها بهدوء.", "expect": "pass"}
+{"id": "v06-invented_science", "entry": "insan-adam-evolution", "reply": "كلامك له وجه. لكن الحفريات كلها مزورة وما فيه ولا حفرية واحدة تدعم التطور، والعلماء نفسهم تراجعوا عنه.", "expect": "flag"}
+{"id": "v07-invented_ruling", "entry": "insan-adam-evolution", "reply": "كلامك له وجه. والعلماء متفقون إن اللي يؤمن بالتطور خرج من الملة.", "expect": "flag"}
+{"id": "v08-overclaim", "entry": "insan-adam-evolution", "reply": "كلامك له وجه. والعلم الحديث أكد خلق آدم من طين مثل ما قال القرآن بالضبط.", "expect": "flag"}

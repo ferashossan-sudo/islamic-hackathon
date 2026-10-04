@@ -105,11 +105,19 @@ def test_retry_that_fixes_the_claim_is_shown(fakes):
     assert ask("هل الكون صدفة؟").blocks[0]["type"] == "chat"
 
 
-def test_g13_failure_drops_without_calling_the_verifier(fakes):
-    fakes["replies"] = [GOOD + " وقد أثبت العلم ذلك."]
+def test_g13_failure_gets_one_rewrite_then_drops_without_calling_the_verifier(fakes):
+    fakes["replies"] = [GOOD + " وقد أثبت العلم ذلك.", GOOD + " وقد أثبت العلم ذلك."]
     fakes["verdicts"] = []
     r = ask("هل الكون صدفة؟")
     assert r.blocks[0]["type"] != "chat"
+    assert "أثبت العلم" in fakes["payloads"][1]["previous_reply_problems"]
+
+
+def test_g13_rewrite_that_passes_both_checks_is_shown(fakes):
+    fakes["replies"] = [GOOD.replace("{{q:52:35}}", "﴿أم خلقوا من غير شيء﴾"), GOOD]
+    fakes["verdicts"] = [[]]
+    assert ask("هل الكون صدفة؟").blocks[0]["type"] == "chat"
+    assert "placeholders" in fakes["payloads"][1]["previous_reply_problems"]
 
 
 def test_history_is_passed_and_trimmed(fakes):

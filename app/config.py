@@ -3,8 +3,9 @@ import os
 from dataclasses import dataclass
 
 DEFAULT_MODELS = {"gemini": "gemini-3.5-flash-lite", "anthropic": "claude-opus-5-5"}
-# The verifier judges finer distinctions (claim vs. analogy); a separate model also spreads free-tier limits.
-DEFAULT_VERIFY_MODELS = {"gemini": "gemini-3.5-flash", "anthropic": "claude-opus-5-5"}
+# gemini-3.5-flash allows only 20 free requests a day and took 9-15 s; flash-lite flagged 6/6 invented claims
+# and passed 2/2 clean replies (eval/check_verifier.py), in about a second.
+DEFAULT_VERIFY_MODELS = {"gemini": "gemini-3.5-flash-lite", "anthropic": "claude-opus-5-5"}
 
 
 def _flag(name: str, default: bool) -> bool:
