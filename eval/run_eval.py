@@ -185,20 +185,35 @@ async def run_case(case: dict, settings, sleep: float) -> dict:
 
 
 def load_drafts() -> list[dict]:
-    """Team-only: every valid draft (content/kb.json and private/drafts/*/) treated as approved, in memory."""
-    entries = {e["id"]: e for e in kb.read_all()}
+    """Team-only: every valid draft (content/kb.json, then private/drafts/*/) treated as approved, in memory.
+
+    The last VALID version of each id wins; an invalid later copy never hides a valid earlier one.
+    """
+    candidates: dict[str, list[tuple[str, dict]]] = {}
+    for e in kb.read_all():
+        candidates.setdefault(e["id"], []).append(("content/kb.json", e))
     for path in sorted(DRAFT_DIRS.glob("*/*.json")):
         for e in json.loads(path.read_text(encoding="utf-8")):
-            entries[e["id"]] = e
+            candidates.setdefault(e["id"], []).append((str(path.relative_to(ROOT)), e))
     out = []
-    for e in entries.values():
-        try:
-            e = kb.normalize_refs(e)
-        except ValueError:
+    for entry_id, versions in candidates.items():
+        chosen, problems = None, []
+        for where, e in reversed(versions):
+            try:
+                e = kb.normalize_refs(json.loads(json.dumps(e)))
+            except ValueError as exc:
+                problems.append(f"{where}: {exc}")
+                continue
+            errors = kb.validate_entry(e)[0]
+            if e.get("status") == "rejected" or errors:
+                problems.append(f"{where}: {(errors or ['rejected'])[0]}")
+                continue
+            chosen = e
+            break
+        if chosen is None:
+            print("dropped", entry_id, "|", "; ".join(problems))
             continue
-        if e.get("status") == "rejected" or kb.validate_entry(e)[0]:
-            continue
-        e = {**e, "status": "approved"}
+        e = {**chosen, "status": "approved"}
         e["review"] = {"reviewer": "معاينة مسودة", "reviewed_at": "", "note": "", "approved_hash": kb.approved_hash(e)}
         out.append(e)
     return out
