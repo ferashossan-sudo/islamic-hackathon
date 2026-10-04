@@ -18,7 +18,7 @@ services:
       - key: ROUTER_PROVIDER
         value: gemini
       - key: ROUTER_MODEL
-        value: gemini-2.5-flash
+        value: gemini-3.5-flash-lite
       - key: LLM_ENABLED
         value: "true"
       - key: GEMINI_API_KEY

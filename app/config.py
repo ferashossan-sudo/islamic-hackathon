@@ -2,7 +2,7 @@
 import os
 from dataclasses import dataclass
 
-DEFAULT_MODELS = {"gemini": "gemini-2.5-flash", "anthropic": "claude-opus-5-5"}
+DEFAULT_MODELS = {"gemini": "gemini-3.5-flash-lite", "anthropic": "claude-opus-5-5"}
 
 
 def _flag(name: str, default: bool) -> bool:
