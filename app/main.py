@@ -37,7 +37,7 @@ SECURITY_HEADERS = {
     "Permissions-Policy": "camera=(), microphone=(), geolocation=(), interest-cohort=()",
 }
 # Only these paths are logged by name; any other path is logged as "other" so no visitor text reaches the log.
-LOGGED_PATHS = {"/", "/health", "/api/config", "/api/chat", "/static/app.js", "/static/styles.css"}
+LOGGED_PATHS = {"/", "/health", "/api/config", "/api/chat", "/api/selftest", "/static/app.js", "/static/styles.css"}
 
 app = FastAPI(title="Litatma'inna Qalbi", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
@@ -78,6 +78,20 @@ async def health() -> dict:
             "llm": router.health(settings), "provider": settings.router_provider if settings.router_key else None}
 
 
+@app.get("/api/selftest")
+async def selftest(request: Request) -> JSONResponse:
+    """For the scheduled check: one known question through the model path. Needs SELFTEST_TOKEN."""
+    token = os.environ.get("SELFTEST_TOKEN", "")
+    if not token or request.headers.get("x-selftest-token") != token:
+        return JSONResponse({"ok": False}, status_code=403)
+    if not APPROVED:
+        return JSONResponse({"ok": False, "reason": "no_approved_entries"})
+    question = APPROVED[0]["question"]
+    _, response = await pipeline.handle(ChatRequest(message=question), settings, "selftest")
+    ok = response.kind == "answer" and not response.degraded
+    return JSONResponse({"ok": ok, "kind": response.kind, "degraded": response.degraded, "llm": router.health(settings)})
+
+
 @app.get("/api/config")
 async def config() -> dict:
     return {
@@ -91,9 +105,10 @@ async def config() -> dict:
 
 
 @app.post("/api/chat")
-async def chat(req: ChatRequest) -> JSONResponse:
+async def chat(req: ChatRequest, request: Request) -> JSONResponse:
+    address = request.client.host if request.client else ""  # reduced to a daily salted hash in limits.py
     try:
-        status, response = await pipeline.handle(req, settings)
+        status, response = await pipeline.handle(req, settings, address)
     except Exception:
         status, response = 200, pipeline.fail_closed(settings)
     log_event(event="chat", kind=response.kind, degraded=response.degraded)

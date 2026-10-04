@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 
 from app import arabic, compose, converse, distress, guards, quran, router, texts
 from app.config import Settings
+from app.limits import LIMITER
 from app.lexical import LexicalIndex
 from app.schemas import ChatRequest, ChatResponse
 from app.usage import log_event
@@ -230,7 +231,15 @@ def model_decision(decision, message: str, prev: dict | None, req: ChatRequest, 
                         blocks=[message_block("abstain"), *_maybe_block(message), *_suggest_block(s)])
 
 
-async def handle(req: ChatRequest, s: Settings) -> tuple[int, ChatResponse]:
+def limit_response(wait_seconds: int, s: Settings) -> ChatResponse:
+    minutes = max(1, round(wait_seconds / 60))
+    duration = "دقيقة واحدة" if minutes == 1 else ("دقيقتين" if minutes == 2 else f"{minutes} دقائق")
+    return ChatResponse(kind="limit", version=s.version, blocks=[
+        {"type": "message", "key": "rate_limit", "text": texts.text("rate_limit").replace("{المدة}", duration)},
+        message_block("support_line")])
+
+
+async def handle(req: ChatRequest, s: Settings, address: str = "") -> tuple[int, ChatResponse]:
     message = clean_message(req.message)
     # Step 2: distress first, on the whole message, before validation, limits, language or any model.
     if distress.detect_distress(message):
@@ -239,6 +248,9 @@ async def handle(req: ChatRequest, s: Settings) -> tuple[int, ChatResponse]:
         return 422, ChatResponse(kind="abstain", version=s.version, blocks=[message_block("input_invalid")])
     if len(message) > MAX_CHARS:
         return 422, ChatResponse(kind="abstain", version=s.version, blocks=[message_block("input_too_long")])
+    # Step 3: rate limits, after distress so a person in distress always gets the support card.
+    if (wait := LIMITER.check(req.sid, address)) > 0:
+        return 429, limit_response(wait, s)
     if (reply := smalltalk(message, s)) is not None:
         return 200, reply
     if arabic.arabic_ratio(message) < NON_ARABIC_BELOW:
@@ -295,7 +307,7 @@ async def _respond(message: str, req: ChatRequest, s: Settings) -> ChatResponse:
     if not STATE.entries:
         # No approved entries yet: the router is skipped and the fixed abstention is returned.
         return abstain(s)
-    if s.llm_enabled and req.mode != "offline":
+    if s.llm_enabled and req.mode != "offline" and LIMITER.llm_allowed():
         prev = STATE.entries.get(req.context.prev_entry_id or "")
         decision = await router.decide(message, prev, list(STATE.entries.values()), s)
         if decision is not None:

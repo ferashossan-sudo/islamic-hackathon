@@ -121,8 +121,11 @@ async def decide(message: str, prev_entry: dict | None, entries: list[dict], s: 
     system = RULES + "\n\n\x1e" + catalog(entries)
     payload = user_payload(message, prev_entry)
     started = perf_counter()
+    from app.limits import LIMITER
+
     for attempt, timeout in enumerate((s.router_timeout_s, s.router_retry_timeout_s)):
         try:
+            LIMITER.count_llm_call()
             text, usage = await call(s, system, payload, timeout)
             decision = Decision.model_validate_json(text)
             log_event(event="llm", call="router", model=s.router_model, ok=True,

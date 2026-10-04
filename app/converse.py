@@ -121,8 +121,11 @@ VERIFIERS = {"gemini": _gemini_verify}
 
 
 async def _call(kind: str, fn, s: Settings, payload_text: str, model_cls):
+    from app.limits import LIMITER
+
     started = perf_counter()
     try:
+        LIMITER.count_llm_call()
         text, usage = await fn(s, payload_text, s.converse_timeout_s)
         value = model_cls.model_validate_json(text)
         log_event(event="llm", call=kind, ok=True, ms=round((perf_counter() - started) * 1000), **usage)
