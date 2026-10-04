@@ -58,3 +58,15 @@ def test_a_fenced_json_reply_is_unwrapped(server):
     fenced = {"candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": '```json\n{"a": 2}\n```'}]}}]}
     replies["m-a"] = (200, fenced)
     assert run()[0] == '{"a": 2}'
+
+
+def test_a_single_model_from_the_dashboard_still_gets_the_free_tier_fallbacks(monkeypatch):
+    from app import config
+    monkeypatch.setenv("ROUTER_PROVIDER", "gemini")
+    monkeypatch.setenv("ROUTER_MODEL", "gemini-3.5-flash-lite")
+    assert config.load_settings().router_model == "gemini-3.5-flash-lite,gemini-3.1-flash-lite"
+    monkeypatch.setenv("ROUTER_MODEL", "gemini-3.1-flash-lite")
+    assert config.load_settings().router_model == "gemini-3.1-flash-lite,gemini-3.5-flash-lite"
+    monkeypatch.setenv("ROUTER_PROVIDER", "anthropic")
+    monkeypatch.setenv("ROUTER_MODEL", "claude-opus-5-5")
+    assert config.load_settings().router_model == "claude-opus-5-5"

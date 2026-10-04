@@ -12,6 +12,16 @@ DEFAULT_VERIFY_MODELS = {"gemini": "gemini-3.5-flash-lite,gemini-3.1-flash-lite,
                          "anthropic": "claude-opus-5-5"}
 
 
+def with_fallbacks(models: str, defaults: str) -> str:
+    """The configured models first, then any default model not already named, as fallbacks.
+
+    A single model set in the hosting dashboard (ROUTER_MODEL=gemini-3.5-flash-lite) still gets the free-tier chain.
+    """
+    names = [m.strip() for m in models.split(",") if m.strip()]
+    names += [m.strip() for m in defaults.split(",") if m.strip() and m.strip() not in names]
+    return ",".join(names)
+
+
 def first(models: str) -> str:
     """The first model of a comma-separated chain (providers without fallback use only this one)."""
     return models.split(",")[0].strip()
@@ -54,12 +64,19 @@ class Settings:
 def load_settings() -> Settings:
     commit = os.environ.get("RENDER_GIT_COMMIT", "")
     provider = os.environ.get("ROUTER_PROVIDER", "gemini").strip().lower()
-    router_model = os.environ.get("ROUTER_MODEL", "").strip() or DEFAULT_MODELS.get(provider, "")
+    def models(name: str, defaults: dict) -> str:
+        value = os.environ.get(name, "").strip()
+        default = defaults.get(provider, "")
+        if provider != "gemini":  # one model, no chain
+            return value or default
+        return with_fallbacks(value, default) if value else default
+
+    router_model = models("ROUTER_MODEL", DEFAULT_MODELS)
     return Settings(
         router_provider=provider,
         router_model=router_model,
-        converse_model=os.environ.get("CONVERSE_MODEL", "").strip() or DEFAULT_CONVERSE_MODELS.get(provider, router_model),
-        verify_model=os.environ.get("VERIFY_MODEL", "").strip() or DEFAULT_VERIFY_MODELS.get(provider, router_model),
+        converse_model=models("CONVERSE_MODEL", DEFAULT_CONVERSE_MODELS) or router_model,
+        verify_model=models("VERIFY_MODEL", DEFAULT_VERIFY_MODELS) or router_model,
         converse_enabled=_flag("CONVERSE_ENABLED", True),
         converse_timeout_s=float(os.environ.get("CONVERSE_TIMEOUT_S", "15")),
         gemini_api_key=os.environ.get("GEMINI_API_KEY", ""),
