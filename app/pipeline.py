@@ -202,12 +202,13 @@ def model_decision(decision, message: str, prev: dict | None, req: ChatRequest, 
         key = REFERRALS[decision.oos_reason]
         extra = _suggest_block(s) if key == "referral_other_topic" else []
         return ChatResponse(kind="refer", version=s.version, blocks=[message_block(key), *extra])
-    if decision.route == "followup" and prev is not None:
-        return _followup(prev, req, s)
     entry = STATE.entries.get(decision.entry_id)
+    # The repeat rule comes before follow-up (decision table row 3): the third time, whatever the route.
     resolved = prev if decision.route == "followup" and prev is not None else entry
     if req.context.repeat_count >= 2 and resolved is not None and answered_before(resolved["id"], req):
         return repeat_response(resolved["id"], s, degraded=False)
+    if decision.route == "followup" and prev is not None:
+        return _followup(prev, req, s)
     if decision.evidence_request != "none":
         has = bool(entry and (entry.get("hadiths") if decision.evidence_request == "hadith" else entry.get("verses")))
         if not has:

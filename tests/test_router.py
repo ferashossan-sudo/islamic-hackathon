@@ -150,3 +150,14 @@ def test_neutral_framing_is_shown_first_with_its_label(fake):
     r = ask("كيف أعرف أن الله موجود؟")
     assert r.blocks[0]["type"] == "framing"
     assert r.blocks[0]["label"] == "صياغة المساعد"
+
+
+def test_repeat_rule_wins_over_followup(fake):
+    fake["reply"] = decision(route="followup", entry_id="kawn-god-existence")
+    req_recent = [{"entry_id": "kawn-god-existence", "kind": "answer", "layer": "summary"},
+                  {"entry_id": "kawn-god-existence", "kind": "answer", "layer": "explain"}]
+    req = ChatRequest(message="طيب بس كيف أتأكد إن الله موجود؟",
+                      context=ChatContext(prev_entry_id="kawn-god-existence", repeat_count=2,
+                                          recent=[RecentItem(**r) for r in req_recent]))
+    r = asyncio.run(pipeline.handle(req, SETTINGS))[1]
+    assert r.blocks[0]["key"] == "notice_repeat"

@@ -144,6 +144,9 @@ def _entry_html(entry: dict) -> str:
     if excerpt.exists():
         parts.append("<h3>مقتطف المصدر (للمطابقة)</h3><div class='excerpt'>"
                      + _paras(excerpt.read_text(encoding="utf-8")) + "</div>")
+    if entry.get("review_notes"):
+        parts.append("<h3>نقاط تحتاج قرارك</h3><div class='warn'>"
+                     + "".join(f"<p>• {escape(n)}</p>" for n in entry["review_notes"]) + "</div>")
     if errors or warnings:
         parts.append("<div class='warn'>" + "".join(f"<p>⚠ {escape(m)}</p>" for m in errors + warnings) + "</div>")
     parts.append(f"<p class='reply'>للرد: «{escape(entry['id'])}: معتمد» أو «{escape(entry['id'])}: يحتاج تعديل، ...» أو «مرفوض»</p></section>")
