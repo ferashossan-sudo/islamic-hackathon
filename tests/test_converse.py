@@ -91,6 +91,14 @@ def test_chat_block_comes_first_with_filled_verse_and_hadith(fakes):
     assert any(b["type"] == "sources" for b in r.blocks)  # the approved card is still there
 
 
+def test_a_repeated_verse_or_hadith_is_shown_once(fakes):
+    fakes["replies"] = [GOOD + " وكما في {{q:52:35}} و{{h:1}}."]
+    chat = ask("هل الكون صدفة؟").blocks[0]
+    assert [seg["type"] for seg in chat["segments"]].count("verse") == 1
+    assert [seg["type"] for seg in chat["segments"]].count("hadith") == 1
+    assert any("[الطور: 35]" in seg["text"] for seg in chat["segments"] if seg["type"] == "text")
+
+
 def test_unsupported_claim_gets_one_retry_then_drops(fakes):
     fakes["replies"] = [GOOD, GOOD]
     fakes["verdicts"] = [["ادعاء زائد"], ["ادعاء زائد"]]

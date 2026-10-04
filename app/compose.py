@@ -25,19 +25,22 @@ CHAT_PLACEHOLDER = re.compile(r"\{\{(q|h):([^}]+)\}\}")
 
 def chat_segments(text: str, entry: dict) -> list[dict]:
     """The model's reply split into text, verse (from the mushaf) and hadith (from the entry) segments."""
-    out, pos = [], 0
+    out, pos, seen = [], 0, set()
     hadiths = entry.get("hadiths", [])
     for match in CHAT_PLACEHOLDER.finditer(text):
         if match.start() > pos:
             out.append({"type": "text", "text": text[pos:match.start()]})
         kind, value = match.groups()
-        if kind == "q":
+        if (kind, value) in seen:  # a second mention points back instead of repeating the whole text
+            out.append({"type": "text", "text": f"[{quran.label(value)}]" if kind == "q" else "(الحديث السابق)"})
+        elif kind == "q":
             out.append(verse_item(value))
         else:
             h = hadiths[int(value) - 1]
             out.append({"type": "hadith", "text": h["text"], "url": h["url"],
                         "line": _fill(texts.text("hadith_attribution_line"), المصدر=h["source"], الرقم=str(h["number"]),
                                       الدرجة=h["grade"], المحدث=h["grader"])})
+        seen.add((kind, value))
         pos = match.end()
     if pos < len(text):
         out.append({"type": "text", "text": text[pos:]})
