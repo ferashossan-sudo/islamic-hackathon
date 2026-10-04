@@ -2,10 +2,11 @@
 import re
 from dataclasses import dataclass, field
 
-from app import arabic, compose, distress, router, texts
+from app import arabic, compose, distress, guards, router, texts
 from app.config import Settings
 from app.lexical import LexicalIndex
 from app.schemas import ChatRequest, ChatResponse
+from app.usage import log_event
 
 MAX_CHARS = 800
 NON_ARABIC_BELOW = 0.3
@@ -24,6 +25,7 @@ _THANKS = ("شكرا", "شكرا لك", "جزاك الله خير", "جزاك ا
 class KBState:
     entries: dict[str, dict] = field(default_factory=dict)
     index: LexicalIndex | None = None
+    source_names: list[str] = field(default_factory=list)  # G5 condition 5
 
 
 STATE = KBState()
@@ -32,6 +34,26 @@ STATE = KBState()
 def load(approved: list[dict]) -> None:
     STATE.entries = {e["id"]: e for e in approved}
     STATE.index = LexicalIndex(approved) if approved else None
+    names = set()
+    for e in approved:
+        names.add(e["source"]["name"])
+        names.update(t["mufassir"] for t in e.get("tafsir", []))
+        names.update(t["source"] for t in e.get("tafsir", []))
+        names.update(h["source"] for h in e.get("hadiths", []))
+        names.update(sc["source"] for sc in e.get("science", []))
+    STATE.source_names = sorted(n for n in names if n)
+
+
+def framing_block(framing: str, message: str, entry: dict, s: Settings) -> list[dict]:
+    """G5: the model's linking sentence is shown only if it passes all eight conditions; else dropped."""
+    if not s.framing_enabled or not framing:
+        return []
+    ok = guards.check_framing(framing, message, STATE.source_names, [h["text"] for h in entry.get("hadiths", [])])
+    log_event(event="framing", ok=ok)
+    if not ok:
+        return []
+    return [{"type": "framing", "label": texts.text("badge_framing"), "hint": texts.text("badge_framing_hint"),
+             "text": framing.strip()}]
 
 
 def clean_message(raw: str) -> str:
@@ -91,9 +113,10 @@ def smalltalk(message: str, s: Settings) -> ChatResponse | None:
     return None
 
 
-def answer(entry_id: str, s: Settings, degraded: bool, layer: str = "summary") -> ChatResponse:
+def answer(entry_id: str, s: Settings, degraded: bool, layer: str = "summary",
+           framing: list[dict] | None = None) -> ChatResponse:
     entry = STATE.entries[entry_id]
-    blocks = compose.answer_blocks(entry, STATE.entries, layer)
+    blocks = (framing or []) + compose.answer_blocks(entry, STATE.entries, layer)
     return ChatResponse(kind="answer", entry_id=entry_id, layer=layer, degraded=degraded, version=s.version,
                         blocks=blocks)
 
@@ -165,7 +188,8 @@ def model_decision(decision, message: str, prev: dict | None, req: ChatRequest, 
         accepted = decision.confidence == "high" or (
             decision.confidence == "medium" and s.confidence_min != "high" and entry["id"] in top3)
         if accepted:
-            return answer(entry["id"], s, degraded=False)
+            return answer(entry["id"], s, degraded=False,
+                          framing=framing_block(decision.framing, message, entry, s))
     return ChatResponse(kind="abstain", version=s.version,
                         blocks=[message_block("abstain"), *_maybe_block(message), *_suggest_block(s)])
 

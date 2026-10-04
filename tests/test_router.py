@@ -138,7 +138,15 @@ def test_catalog_lists_only_approved_entries(fake):
     assert len(catalog.strip().splitlines()) == 1 + len(SAMPLE)
 
 
-def test_framing_is_not_shown_before_g5(fake):
+def test_framing_with_a_claim_is_dropped(fake):
     fake["reply"] = decision(entry_id="kawn-god-existence", framing="الكون له بداية والخالق أوجده")
     r = ask("هل الله موجود؟")
+    assert r.kind == "answer"
     assert not any(b["type"] == "framing" for b in r.blocks)
+
+
+def test_neutral_framing_is_shown_first_with_its_label(fake):
+    fake["reply"] = decision(entry_id="kawn-god-existence", framing="سؤالك مهم، وهذه الإجابة المراجعة باختصار.")
+    r = ask("كيف أعرف أن الله موجود؟")
+    assert r.blocks[0]["type"] == "framing"
+    assert r.blocks[0]["label"] == "صياغة المساعد"

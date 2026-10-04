@@ -101,6 +101,13 @@
   let degradedShown = false;
 
   const renderers = {
+    framing(card, b) {
+      const box = el("p", "block block-framing");
+      const badge = el("span", "tag tag-framing", b.label);
+      badge.title = b.hint || "";
+      box.append(badge, " ", b.text);
+      card.append(box);
+    },
     message(card, b) {
       const box = el("div", "block block-message");
       if (b.lang === "en") {

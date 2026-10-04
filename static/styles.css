@@ -355,3 +355,10 @@ main {
 }
 
 .call-number { font-size: 1.15rem; direction: ltr; }
+
+.block-framing {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.tag-framing { margin-inline-end: 4px; }
