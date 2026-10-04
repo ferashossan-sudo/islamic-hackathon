@@ -24,21 +24,22 @@ def chain(models: str) -> list[str]:
     return [m.strip() for m in models.split(",") if m.strip()]
 
 
-def body(model: str, system: str, payload: str, schema: dict, temperature: float, max_tokens: int) -> dict:
+def body(model: str, system: str, payload: str, schema: dict | None, temperature: float, max_tokens: int) -> dict:
     out = {
         "systemInstruction": {"parts": [{"text": system}]},
         "contents": [{"role": "user", "parts": [{"text": payload}]}],
-        "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens,
-                             "responseMimeType": "application/json", "responseSchema": schema},
+        "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens},
         "safetySettings": SAFETY,
     }
+    if schema is not None:  # without a schema the reply is plain text (the evaluation baseline)
+        out["generationConfig"].update(responseMimeType="application/json", responseSchema=schema)
     # Gemini flash models think by default (slow, and the free quota counts it); lite and Gemma reject the setting.
     if model.startswith("gemini-") and "lite" not in model:
         out["generationConfig"]["thinkingConfig"] = {"thinkingBudget": 0}
     return out
 
 
-async def generate(key: str, models: str, system: str, payload: str, schema: dict, timeout: float,
+async def generate(key: str, models: str, system: str, payload: str, schema: dict | None, timeout: float,
                    temperature: float = 0.0, max_tokens: int = 1200) -> tuple[str, dict]:
     """JSON text from the first model in the chain that answers. Raises if none does."""
     last: Exception = RuntimeError("no model available")
