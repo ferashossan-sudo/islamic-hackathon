@@ -10,8 +10,16 @@ from pathlib import Path
 from app import arabic, texts
 
 TERMS_PATH = Path(__file__).resolve().parent.parent / "content" / "distress_terms.json"
-# Harm by others adds the domestic-violence line (from the approved text's own scope note).
-HARM_TERMS = ("يضربني", "يعنفني", "يتحرش بي", "اعتدي علي", "يهددني", "hits me", "abuses me")
+# Harm by others adds the domestic-violence line (from the approved text's own scope note). It covers the writer
+# and the people at home («ابوي يضرب امي»), but not general questions («الرجل يضرب زوجته؟»، «اضربوهن»).
+_SELF_HARM_BY_OTHERS = ("يضربني", "يعنفني", "يتحرش بي", "يتحرش فيني", "اعتدي علي", "يهددني", "يؤذيني", "يأذيني",
+                        "تضربني", "تعنفني", "تؤذيني", "تهددني", "يضربنا", "يعنفنا", "يؤذينا", "يهددنا", "hits me",
+                        "abuses me")
+_HARM_VERBS = ("يضرب", "يضربون", "تضرب", "يعنف", "تعنف", "يؤذي", "يأذي", "تؤذي", "يهدد", "تهدد", "يتحرش ب")
+_HOME = ("امي", "ماما", "اختي", "اخوي", "اخواني", "اخواتي", "خواتي", "ابوي", "زوجتي", "ولدي", "بنتي", "عيالي",
+         "اهلي", "امنا")
+HARM_TERMS = _SELF_HARM_BY_OTHERS + tuple(f"{v} {o}" if not v.endswith(" ب") else f"{v}{o}"
+                                          for v in _HARM_VERBS for o in _HOME)
 _LATIN = re.compile(r"[a-z]")
 
 
@@ -33,7 +41,8 @@ def _prepared(message: str) -> str:
 def detect_distress(message: str) -> bool:
     text = _prepared(message)
     anywhere, whole = _terms()
-    return any(t in text for t in anywhere) or any(f" {t} " in text for t in whole)
+    return (any(t in text for t in anywhere) or any(f" {t} " in text for t in whole)
+            or mentions_harm_by_others(message))
 
 
 def mentions_harm_by_others(message: str) -> bool:
