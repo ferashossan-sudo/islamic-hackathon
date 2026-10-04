@@ -170,3 +170,12 @@ def test_final_check_rejects_altered_verse(loaded):
 def test_api_answer_roundtrip(loaded):
     body = client.post("/api/chat", json={"message": "ليش فيه شر في الدنيا؟", "mode": "offline"}).json()
     assert body["kind"] == "answer" and body["entry_id"] == "sharr-why-evil"
+
+
+def test_non_arabic_term_gets_approved_glossary_meaning(monkeypatch):
+    monkeypatch.setattr(pipeline, "load_glossary", lambda: [{
+        "key": "jihad", "match": ["jihad"], "term_en": "Jihad", "term_ar": "الجهاد",
+        "definition_en": "A test definition.", "url": "https://terminologyenc.com/en/browse/term/1"}])
+    r = ask("What does jihad mean in Islam?")[1]
+    assert r.kind == "non_arabic"
+    assert r.blocks[0]["type"] == "glossary" and r.blocks[0]["items"][0]["term_ar"] == "الجهاد"

@@ -301,6 +301,19 @@
       segmentsInto(box, b.summary);
       card.append(box);
     },
+    glossary(card, b) {
+      const box = el("div", "block block-glossary");
+      box.lang = "en";
+      box.dir = "ltr";
+      box.append(el("p", "hint", b.title));
+      (b.items || []).forEach((t) => {
+        const item = el("p");
+        item.append(el("strong", null, t.term_en), " (", el("bdi", null, t.term_ar), "): ", t.definition_en, " ");
+        item.append(externalLink("Source", t.url));
+        box.append(item);
+      });
+      card.append(box);
+    },
     review(card, b) {
       card.append(el("p", "hint review-line", b.text));
     },

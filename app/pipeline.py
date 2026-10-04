@@ -1,6 +1,8 @@
 """Message pipeline (build-plan §2). Every path ends in a fixed text or an approved entry."""
+import json
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from app import arabic, compose, converse, distress, guards, quran, router, texts
 from app.config import Settings
@@ -98,8 +100,27 @@ def distress_response(message: str, s: Settings) -> ChatResponse:
     return ChatResponse(kind="distress", version=s.version, blocks=blocks)
 
 
-def non_arabic_response(s: Settings) -> ChatResponse:
-    return ChatResponse(kind="non_arabic", version=s.version, blocks=[
+GLOSSARY_PATH = Path(__file__).resolve().parent.parent / "content" / "glossary.json"
+
+
+def load_glossary() -> list[dict]:
+    if not GLOSSARY_PATH.exists():
+        return []
+    return json.loads(GLOSSARY_PATH.read_text(encoding="utf-8")).get("terms", [])
+
+
+def glossary_block(message: str) -> list[dict]:
+    """R6 (translation and localisation): the approved English meaning of a religious term the person used."""
+    words = set(re.findall(r"[a-z']+", message.lower()))
+    items = [{"term_en": t["term_en"], "term_ar": t["term_ar"], "definition_en": t["definition_en"], "url": t["url"]}
+             for t in load_glossary() if words & set(t["match"])]
+    if not items:
+        return []
+    return [{"type": "glossary", "title": "From the Encyclopedia of Translated Islamic Terms", "items": items[:3]}]
+
+
+def non_arabic_response(s: Settings, message: str = "") -> ChatResponse:
+    return ChatResponse(kind="non_arabic", version=s.version, blocks=[*glossary_block(message),
         {"type": "message", "key": "non_arabic", "text": texts.text_en("non_arabic"), "lang": "en"},
         {"type": "message", "key": "non_arabic", "text": texts.text("non_arabic")},
         {"type": "message", "key": "support_line", "text": texts.text("support_line")},
@@ -254,7 +275,7 @@ async def handle(req: ChatRequest, s: Settings, address: str = "") -> tuple[int,
     if (reply := smalltalk(message, s)) is not None:
         return 200, reply
     if arabic.arabic_ratio(message) < NON_ARABIC_BELOW:
-        return 200, non_arabic_response(s)
+        return 200, non_arabic_response(s, message)
     notice = misquote_block(message)
     response = await _respond(message, req, s)
     if notice and response.kind not in ("distress", "non_arabic", "smalltalk"):
