@@ -69,6 +69,19 @@ async def run_case(case: dict, settings, sleep: float, events: list) -> dict:
         failed.append(f"kind:{last['kind']}")
     if case.get("expect_entries") and last["kind"] == "answer" and last["entry"] not in case["expect_entries"]:
         failed.append(f"entry:{last['entry']}")
+    # Optional per-turn expectations: {"turn": n, "kinds": [...], "entries": [...], "keys_include": [...]}.
+    for exp in case.get("expect_turns", []):
+        t = turns[exp["turn"] - 1] if exp["turn"] <= len(turns) else None
+        if t is None:
+            failed.append(f"t{exp['turn']}:missing")
+            continue
+        if exp.get("kinds") and t["kind"] not in exp["kinds"]:
+            failed.append(f"t{exp['turn']}:kind:{t['kind']}")
+        if exp.get("entries") and t["kind"] == "answer" and t["entry"] not in exp["entries"]:
+            failed.append(f"t{exp['turn']}:entry:{t['entry']}")
+        missing = [k for k in exp.get("keys_include", []) if k not in t["keys"]]
+        if missing:
+            failed.append(f"t{exp['turn']}:keys:{','.join(missing)}")
     for t in turns:
         if t["checks"]["misquoted_verses"] or t["checks"]["certainty_claims"]:
             failed.append("auto:" + ",".join(k for k, v in t["checks"].items() if v and k != "has_link"))

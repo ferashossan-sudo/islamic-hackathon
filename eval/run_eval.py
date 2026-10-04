@@ -65,6 +65,14 @@ def plain_text(response) -> str:
             lines.append("المصادر: " + "، ".join(f"{x['name']} {x['url']}" for x in b["items"]))
         elif t == "referral":
             lines.append(b.get("text", ""))
+        elif t == "guidance":
+            lines.append(segments_text(b["summary"]))
+        elif t == "contacts":
+            lines.append(" · ".join(f"{x['label']}: {x['number']}" for x in b["items"]))
+        elif t == "related":
+            lines.append((b.get("title") or "أسئلة مرتبطة") + " " + "، ".join(x["question"] for x in b["items"]))
+        elif t == "glossary":
+            lines += [f"{x['term_en']} ({x['term_ar']}): {x['definition_en']}" for x in b["items"]]
     return "\n".join(x.strip() for x in lines if x and x.strip())
 
 
