@@ -7,7 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app import kb, pipeline, texts
+from app import kb, pipeline, router, texts
 from app.config import load_settings
 from app.pages import render_index
 from app.schemas import ChatRequest, ChatResponse
@@ -70,7 +70,7 @@ async def index() -> HTMLResponse:
 @app.get("/health")
 async def health() -> dict:
     return {"ok": True, "version": settings.version, "approved": len(APPROVED), "kb_hash": KB_HASH,
-            "llm": "up" if settings.llm_enabled else "off"}
+            "llm": router.health(settings), "provider": settings.router_provider if settings.router_key else None}
 
 
 @app.get("/api/config")
@@ -86,7 +86,7 @@ async def config() -> dict:
 @app.post("/api/chat")
 async def chat(req: ChatRequest) -> JSONResponse:
     try:
-        status, response = pipeline.handle(req, settings)
+        status, response = await pipeline.handle(req, settings)
     except Exception:
         status, response = 200, pipeline.fail_closed(settings)
     log_event(event="chat", kind=response.kind, degraded=response.degraded)

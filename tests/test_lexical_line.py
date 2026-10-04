@@ -1,4 +1,5 @@
 """WP3: distress first (G7), language, small talk, lexical retrieval, answer composition (step 11)."""
+import asyncio
 import copy
 
 import pytest
@@ -50,7 +51,7 @@ def loaded():
 
 
 def ask(message, mode=""):
-    status, response = pipeline.handle(ChatRequest(message=message, mode=mode), main.settings)
+    status, response = asyncio.run(pipeline.handle(ChatRequest(message=message, mode=mode), main.settings))
     return status, response
 
 

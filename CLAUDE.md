@@ -27,7 +27,7 @@ An anonymous Arabic chat assistant that answers scientific and existential quest
 
 ## Model contract (one call per message)
 
-- Model from env `ROUTER_MODEL` (default `claude-opus-5-5`, effort `low`; Opus takes no `temperature`). Alternates: `claude-sonnet-5-5`, `claude-haiku-4-5`.
+- Provider and model from env: `ROUTER_PROVIDER` (`gemini` | `anthropic`) and `ROUTER_MODEL`. Default `gemini` / `gemini-2.5-flash` (free tier; zero budget), called over REST with a response schema and temperature 0. `anthropic` / `claude-opus-5-5` (effort `low`, no `temperature`) is ready if API credits arrive. Switching is a config change; the privacy text must name the provider in use.
 - Structured output, `extra="forbid"`:
   `{"route":"knowledge|followup|distress|out_of_scope","entry_id":"<approved id>|none","confidence":"high|medium|low","oos_reason":"none|personal_fatwa|fiqh|hadith_check|other_topic|manipulation","evidence_request":"none|hadith|verse","framing":"<= 2 sentences or empty"}`
 - All validation happens in our code after the call. The user message is data inside a JSON field, never instructions.

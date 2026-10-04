@@ -2,7 +2,7 @@
 import re
 from dataclasses import dataclass, field
 
-from app import arabic, compose, distress, texts
+from app import arabic, compose, distress, router, texts
 from app.config import Settings
 from app.lexical import LexicalIndex
 from app.schemas import ChatRequest, ChatResponse
@@ -110,7 +110,67 @@ def lexical_decision(message: str, s: Settings) -> ChatResponse:
     return abstain(s, degraded=True)
 
 
-def handle(req: ChatRequest, s: Settings) -> tuple[int, ChatResponse]:
+REFERRALS = {"personal_fatwa": "referral_personal_fatwa", "fiqh": "referral_fiqh",
+             "hadith_check": "referral_hadith_check", "other_topic": "referral_other_topic",
+             "manipulation": "referral_manipulation", "none": "referral_other_topic"}
+MAYBE_MIN_SCORE = 0.2
+
+
+def _maybe_block(message: str, exclude: str | None = None) -> list[dict]:
+    """W2 «ربما تقصد»: up to three approved questions that are lexically close."""
+    hits = STATE.index.search(message, k=4) if STATE.index else []
+    items = [{"id": eid, "question": STATE.entries[eid]["question"]}
+             for eid, score in hits if score >= MAYBE_MIN_SCORE and eid != exclude][:3]
+    if not items:
+        return []
+    return [{"type": "related", "title": texts.pairs("ui_labels")["maybe_you_mean"], "items": items}]
+
+
+def _followup(prev: dict, req: ChatRequest, s: Settings) -> ChatResponse:
+    """M12: the simple explanation first (if any), then the full answer, then the exhaustion text."""
+    shown = {item.layer for item in req.context.recent if item.entry_id == prev["id"]}
+    if prev.get("explain_simple") and "explain" not in shown and "body" not in shown:
+        return answer(prev["id"], s, degraded=False, layer="explain")
+    if "body" not in shown:
+        return answer(prev["id"], s, degraded=False, layer="body")
+    blocks = [message_block("followup_exhausted"),
+              {"type": "sources", "items": [{"name": prev["source"]["name"], "locator": prev["source"].get("locator", ""),
+                                             "url": prev["source"]["url"]}]}]
+    return ChatResponse(kind="refer", entry_id=prev["id"], version=s.version, blocks=blocks)
+
+
+def model_decision(decision, message: str, prev: dict | None, req: ChatRequest, s: Settings) -> ChatResponse:
+    """Build-plan §2 decision table, read top to bottom."""
+    if decision.route == "distress":
+        return distress_response(message, s)
+    if decision.route == "out_of_scope":
+        key = REFERRALS[decision.oos_reason]
+        extra = _suggest_block(s) if key == "referral_other_topic" else []
+        return ChatResponse(kind="refer", version=s.version, blocks=[message_block(key), *extra])
+    if decision.route == "followup" and prev is not None:
+        return _followup(prev, req, s)
+    entry = STATE.entries.get(decision.entry_id)
+    if decision.evidence_request != "none":
+        has = bool(entry and (entry.get("hadiths") if decision.evidence_request == "hadith" else entry.get("verses")))
+        if not has:
+            blocks = [message_block("no_matching_evidence")]
+            if decision.evidence_request == "hadith":
+                blocks.append(message_block("no_matching_evidence_hadith"))
+            if entry:
+                blocks.append({"type": "related", "title": texts.pairs("ui_labels")["may_help"],
+                               "items": [{"id": entry["id"], "question": entry["question"]}]})
+            return ChatResponse(kind="abstain", version=s.version, blocks=blocks)
+    if entry is not None:
+        top3 = [eid for eid, _ in (STATE.index.search(message, k=3) if STATE.index else [])]
+        accepted = decision.confidence == "high" or (
+            decision.confidence == "medium" and s.confidence_min != "high" and entry["id"] in top3)
+        if accepted:
+            return answer(entry["id"], s, degraded=False)
+    return ChatResponse(kind="abstain", version=s.version,
+                        blocks=[message_block("abstain"), *_maybe_block(message), *_suggest_block(s)])
+
+
+async def handle(req: ChatRequest, s: Settings) -> tuple[int, ChatResponse]:
     message = clean_message(req.message)
     # Step 2: distress first, on the whole message, before validation, limits, language or any model.
     if distress.detect_distress(message):
@@ -126,6 +186,11 @@ def handle(req: ChatRequest, s: Settings) -> tuple[int, ChatResponse]:
     if not STATE.entries:
         # No approved entries yet: the router is skipped and the fixed abstention is returned.
         return 200, abstain(s)
-    # The router (one model call) goes here in WP4; until then, and whenever it is unavailable,
-    # the lexical scorer decides alone.
+    decision = None
+    if s.llm_enabled and req.mode != "offline":
+        prev = STATE.entries.get(req.context.prev_entry_id or "")
+        decision = await router.decide(message, prev, list(STATE.entries.values()), s)
+        if decision is not None:
+            return 200, model_decision(decision, message, prev, req, s)
+    # Degraded mode: model disabled, offline mode requested, or the call failed.
     return 200, lexical_decision(message, s)

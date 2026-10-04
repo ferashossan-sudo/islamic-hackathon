@@ -64,7 +64,7 @@ def test_malformed_request_does_not_echo_input():
 
 
 def test_fail_closed_on_any_exception(monkeypatch):
-    def boom(req, s):
+    async def boom(req, s):
         raise RuntimeError("injected")
 
     monkeypatch.setattr(pipeline, "handle", boom)

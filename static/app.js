@@ -200,7 +200,7 @@
       card.append(el("p", "hint review-line", b.text));
     },
     related(card, b) {
-      const box = section(card, label("related", "أسئلة مرتبطة"), "block-related");
+      const box = section(card, b.title || label("related", "أسئلة مرتبطة"), "block-related");
       (b.items || []).forEach((r) => {
         const chip = el("button", "chip", r.question);
         chip.type = "button";

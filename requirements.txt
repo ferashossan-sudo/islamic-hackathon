@@ -9,9 +9,14 @@ anthropic==1.11.0
 anyio==4.15.1
     # via
     #   anthropic
+    #   httpx
     #   httpx2
     #   starlette
     #   watchfiles
+certifi==2026.7.22
+    # via
+    #   httpcore
+    #   httpx
 click==8.5.0
     # via uvicorn
 docstring-parser==0.18.0
@@ -20,12 +25,17 @@ fastapi==0.142.2
     # via litmainna-qalbi
 h11==0.16.0
     # via
+    #   httpcore
     #   httpcore2
     #   uvicorn
+httpcore==1.0.9
+    # via httpx
 httpcore2==2.13.1 ; sys_platform != 'emscripten'
     # via httpx2
 httptools==0.8.0
     # via uvicorn
+httpx==0.28.1
+    # via litmainna-qalbi
 httpx2==2.13.1
     # via anthropic
 httpx2-jsfetch==1.0 ; sys_platform == 'emscripten'
@@ -33,6 +43,7 @@ httpx2-jsfetch==1.0 ; sys_platform == 'emscripten'
 idna==3.20
     # via
     #   anyio
+    #   httpx
     #   httpx2
 jiter==0.17.0
     # via anthropic
