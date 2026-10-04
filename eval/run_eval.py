@@ -149,8 +149,7 @@ async def main_async(args) -> int:
     out = ROOT / "eval" / "runs" / f"{args.set}_{args.system}_{stamp}.jsonl"
     out.parent.mkdir(parents=True, exist_ok=True)
     rows = []
-    with out.open("w", encoding="utf-8", newline="
-") as f:
+    with out.open("w", encoding="utf-8", newline="\n") as f:
         for run in range(1, args.runs + 1):
             for case in cases:
                 row = {"run": run, **await run_case(case, settings, args.sleep if args.system == "ours" else 0)}
