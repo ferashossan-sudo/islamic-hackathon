@@ -111,7 +111,7 @@ def load_glossary() -> list[dict]:
 
 def glossary_block(message: str) -> list[dict]:
     """R6 (translation and localisation): the approved English meaning of a religious term the person used."""
-    words = set(re.findall(r"[a-z']+", message.lower()))
+    words = set(re.findall(r"[a-z']+", message.lower().replace("’", "'")))
     items = [{"term_en": t["term_en"], "term_ar": t["term_ar"], "definition_en": t["definition_en"], "url": t["url"]}
              for t in load_glossary() if words & set(t["match"])]
     if not items:

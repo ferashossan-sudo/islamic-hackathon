@@ -1,0 +1,135 @@
+{
+  "note": "Approved English meanings from the Encyclopedia of Translated Islamic Terms (terminologyenc.com), quoted verbatim. Approval by the team's sharia reviewer pending.",
+  "approved_by": null,
+  "approved_at": null,
+  "terms": [
+    {
+      "key": "jihad",
+      "match": [
+        "jihad",
+        "jihaad",
+        "jehad"
+      ],
+      "term_en": "Jihad",
+      "term_ar": "جِهادٌ",
+      "definition_en": "Linguistic meaning: exerting utmost effort and power in terms of speech or deeds. Terminological meaning: fighting carried out by a Muslim against a belligerent disbeliever.",
+      "url": "https://terminologyenc.com/en/browse/term/6778",
+      "review_note": "The page's English fields are swapped; both meanings are shown, each verbatim, labelled by us. The Arabic explanation on the page is broader (struggle against the self and Satan); reviewer to decide."
+    },
+    {
+      "key": "tawhid",
+      "match": [
+        "tawhid",
+        "tawheed",
+        "tauhid",
+        "towhid"
+      ],
+      "term_en": "Monotheism",
+      "term_ar": "توحيد",
+      "definition_en": "Singling Allah out in everything exclusive to Him: His Lordship, His divinity (worship), and His names and attributes; and dissociating oneself from polytheism and its people.",
+      "url": "https://terminologyenc.com/en/browse/term/10482"
+    },
+    {
+      "key": "sharia",
+      "match": [
+        "sharia",
+        "shariah",
+        "shari'ah",
+        "shari'a",
+        "shariat"
+      ],
+      "term_en": "Islamic law",
+      "term_ar": "الشريعة",
+      "definition_en": "The clear course in the religion that includes the beliefs, rulings, and ethics.",
+      "url": "https://terminologyenc.com/en/browse/term/47755"
+    },
+    {
+      "key": "fatwa",
+      "match": [
+        "fatwa",
+        "fatwah",
+        "fatwas",
+        "fatawa"
+      ],
+      "term_en": "Religious opinion",
+      "term_ar": "فَتْوَى",
+      "definition_en": "Giving a non-binding religious ruling.",
+      "url": "https://terminologyenc.com/en/browse/term/114"
+    },
+    {
+      "key": "ummah",
+      "match": [
+        "ummah",
+        "umma",
+        "ummat"
+      ],
+      "term_en": "Community/Nation",
+      "term_ar": "أمة",
+      "definition_en": "A large group of people who share one religion, common beliefs or practices.",
+      "url": "https://terminologyenc.com/en/browse/term/43629",
+      "review_note": "The page's English fields are swapped; the terminological translation is used."
+    },
+    {
+      "key": "haram",
+      "match": [
+        "haram",
+        "haraam"
+      ],
+      "term_en": "Unlawful",
+      "term_ar": "حَرامٌ",
+      "definition_en": "Everything that is definitively prohibited under Shariah.",
+      "url": "https://terminologyenc.com/en/browse/term/779"
+    },
+    {
+      "key": "zakat",
+      "match": [
+        "zakat",
+        "zakah",
+        "zakaat",
+        "zakaah"
+      ],
+      "term_en": "Obligatory alms",
+      "term_ar": "الزَكاة",
+      "definition_en": "Giving out a specific part of certain kinds of property in a certain manner to certain types of people.",
+      "url": "https://terminologyenc.com/en/browse/term/5070"
+    },
+    {
+      "key": "dawah",
+      "match": [
+        "dawah",
+        "da'wah",
+        "da'wa",
+        "dawa"
+      ],
+      "term_en": "Calling to Allah",
+      "term_ar": "الدَّعوة إلى الله",
+      "definition_en": "Guiding to belief in Allah Almighty and what was brought by His messengers, and to believing in what they said and obeying of their commands.",
+      "url": "https://terminologyenc.com/en/browse/term/72440"
+    },
+    {
+      "key": "sunnah",
+      "match": [
+        "sunnah",
+        "sunna",
+        "sunnat"
+      ],
+      "term_en": "Sunnah/Prophetic way of life",
+      "term_ar": "سُّنَّةُ",
+      "definition_en": "What is reported to us from the Prophet (may Allah’s peace and blessings be upon him) including his statements, deeds, affirmations, traits, or behavior, before or after the Prophetic mission.",
+      "url": "https://terminologyenc.com/en/browse/term/71807"
+    },
+    {
+      "key": "salah",
+      "match": [
+        "salah",
+        "salat",
+        "salaat",
+        "salaah"
+      ],
+      "term_en": "Prayer",
+      "term_ar": "صَلاةٌ",
+      "definition_en": "A set of statements and actions that starts with Takbīr and ends with Taslīm.",
+      "url": "https://terminologyenc.com/en/browse/term/5720"
+    }
+  ]
+}
