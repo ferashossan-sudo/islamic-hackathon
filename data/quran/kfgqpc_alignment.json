@@ -1,0 +1,10 @@
+{
+  "source": "KFGQPC Hafs v30 (qurancomplex.gov.sa developer platform), Unicode text",
+  "note": "Dabt-only differences between the Quranpedia Uthmani dump and KFGQPC v30 after encoding normalization; the display text of these verses is taken from KFGQPC v30. See docs/prep/quran/VERIFICATION.md.",
+  "verses": {
+    "11:41": "۞ وَقَالَ ٱرۡكَبُواْ فِيهَا بِسۡمِ ٱللَّهِ مَجۡرٜىٰهَا وَمُرۡسَىٰهَآۚ إِنَّ رَبِّي لَغَفُورࣱ رَّحِيمࣱ",
+    "27:20": "وَتَفَقَّدَ ٱلطَّيۡرَ فَقَالَ مَا لِيَ لَآ أَرَى ٱلۡهُدۡهُدَ أَمۡ كَانَ مِنَ ٱلۡغَآئِبِينَ",
+    "36:22": "وَمَا لِيَ لَآ أَعۡبُدُ ٱلَّذِي فَطَرَنِي وَإِلَيۡهِ تُرۡجَعُونَ",
+    "52:37": "أَمۡ عِندَهُمۡ خَزَآئِنُ رَبِّكَ أَمۡ هُمُ ٱلۡمُصَۣيۡطِرُونَ"
+  }
+}

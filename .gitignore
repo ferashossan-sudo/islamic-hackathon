@@ -34,7 +34,7 @@ eval/private/
 private/
 drafts*.csv
 *.responses.csv
-data/quran/kfgqpc*
+data/quran/kfgqpc_hafs*
 .pytest_cache/
 
 # Eval run outputs are committed only for public sets

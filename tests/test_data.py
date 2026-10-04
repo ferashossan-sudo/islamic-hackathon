@@ -174,3 +174,15 @@ def test_load_approved_refuses_broken_approved_entry(tmp_path):
 
 def test_repo_kb_is_valid():
     kb.load_approved()  # the committed kb.json must always load
+
+
+def test_runtime_files_are_tracked_by_git():
+    """Everything the server reads at start must be in the repo (a clean clone or a deploy must run)."""
+    import subprocess
+    tracked = set(subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True,
+                                 encoding="utf-8").stdout.splitlines())
+    needed = ["data/quran/mushafs-1.json.gz", "data/quran/mushafs-2.json.gz", "data/quran/kfgqpc_alignment.json",
+              "content/fixed_texts.json", "content/kb.json", "content/approved_sources.json",
+              "content/distress_terms.json", "content/framing_lexicon.json", "app/prompts/router_v1.md",
+              "app/templates/index.html", "static/app.js", "static/styles.css", "requirements.txt", "render.yaml"]
+    assert [p for p in needed if p not in tracked] == []
