@@ -36,3 +36,6 @@ drafts*.csv
 *.responses.csv
 data/quran/kfgqpc*
 .pytest_cache/
+
+# Eval run outputs are committed only for public sets
+eval/runs/*heldout*
