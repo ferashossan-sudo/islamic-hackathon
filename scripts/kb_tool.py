@@ -5,6 +5,7 @@
     uv run python scripts/kb_tool.py approve ID [ID ...] --date 2026-10-04
     uv run python scripts/kb_tool.py status ID needs_edit --note "..."
     uv run python scripts/kb_tool.py digest -o private/digest.html [--all]
+    uv run python scripts/kb_tool.py decisions private/drafts/batch2 private/drafts/batch3 -o private/decisions.html
 
 Source excerpts for the digest live in private/excerpts/<id>.txt (never committed).
 """
@@ -187,6 +188,124 @@ def cmd_digest(args) -> int:
     return 0
 
 
+OWNERS = {"[لقائد الفريق]": "lead", "[للمراجع الشرعي]": "sharia"}
+DECISIONS_JS = """
+const KEY = "ltq-decisions";
+let saved = {};
+try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { saved = {}; }
+const NL = String.fromCharCode(10);
+function store() { try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {} }
+function compile() {
+  const lines = [];
+  document.querySelectorAll(".item").forEach((item) => {
+    const s = saved[item.dataset.id];
+    if (s && (s.choice || s.note)) lines.push(item.dataset.id + ": " + (s.choice || "") + (s.note ? " — " + s.note : ""));
+  });
+  document.getElementById("out").value = lines.join(NL);
+  document.getElementById("count").textContent = lines.length;
+}
+document.querySelectorAll(".item").forEach((item) => {
+  const id = item.dataset.id;
+  const s = saved[id] || {};
+  item.querySelectorAll("button[data-choice]").forEach((b) => {
+    if (s.choice === b.dataset.choice) b.classList.add("on");
+    b.addEventListener("click", () => {
+      saved[id] = Object.assign(saved[id] || {}, { choice: b.dataset.choice });
+      item.querySelectorAll("button[data-choice]").forEach((x) => x.classList.toggle("on", x === b));
+      store(); compile();
+    });
+  });
+  const note = item.querySelector("input");
+  note.value = s.note || "";
+  note.addEventListener("input", () => { saved[id] = Object.assign(saved[id] || {}, { note: note.value }); store(); compile(); });
+});
+document.getElementById("all").addEventListener("click", () => {
+  document.querySelectorAll(".item").forEach((item) => {
+    const id = item.dataset.id;
+    if (!(saved[id] && saved[id].choice)) {
+      saved[id] = Object.assign(saved[id] || {}, { choice: "موافق" });
+      item.querySelector("button[data-choice]").classList.add("on");
+    }
+  });
+  store(); compile();
+});
+document.getElementById("copy").addEventListener("click", () => {
+  const out = document.getElementById("out");
+  out.select();
+  try { navigator.clipboard.writeText(out.value); } catch (e) { document.execCommand("copy"); }
+});
+compile();
+"""
+DECISIONS_CSS = DIGEST_CSS + """
+.item{border-top:1px solid #dde3df;padding:10px 0}.q{font-weight:600}.rec{background:#eef3f0;border-radius:8px;padding:6px 10px;margin:6px 0}
+.item button{border:1px solid #9aa8a1;background:#fff;border-radius:16px;padding:4px 12px;margin-inline-end:6px;cursor:pointer;font:inherit}
+.item button.on{background:#1f6f5c;color:#fff;border-color:#1f6f5c}.item input{width:100%;margin-top:6px;padding:6px;font:inherit}
+textarea{width:100%;min-height:120px;font:inherit}.bar{position:sticky;top:0;background:#faf8f3;padding:8px 0;z-index:1}
+.tag{display:inline-block;font-size:.8rem;border-radius:10px;padding:0 8px;background:#e8ecea;margin-inline-start:6px}
+"""
+
+
+def _decision_items(entries: list[dict]) -> tuple[list[dict], dict[str, list[dict]]]:
+    """Open review notes split by owner; lead questions about the same thing (OpenStax) are merged."""
+    lead, sharia = [], {}
+    for e in entries:
+        for n, note in enumerate(e.get("review_notes") or [], 1):
+            owner = next((v for k, v in OWNERS.items() if note.startswith(k)), "sharia")
+            text = note
+            for k in OWNERS:
+                text = text.removeprefix(k).strip()
+            question, _, rec = text.partition(" — المقترح:")
+            item = {"id": f"{e['id']}#{n}", "entry": e["id"], "title": e["question"], "q": question.strip(),
+                    "rec": rec.strip()}
+            if owner == "lead":
+                same = next((x for x in lead if "OpenStax" in x["q"] and "OpenStax" in question), None)
+                if same:
+                    same["also"].append(e["id"])
+                else:
+                    lead.append({**item, "also": []})
+            else:
+                sharia.setdefault(e["id"], []).append(item)
+    return lead, sharia
+
+
+def _item_html(item: dict, context: str = "") -> str:
+    rec = f"<div class='rec'>المقترح: {escape(item['rec'])}</div>" if item["rec"] else ""
+    return (f"<div class='item' data-id='{escape(item['id'])}'><div class='meta'>{escape(item['id'])}{context}</div>"
+            f"<div class='q'>{escape(item['q'])}</div>{rec}"
+            f"<button data-choice='موافق'>موافق على المقترح</button><button data-choice='لا'>غير موافق</button>"
+            f"<input placeholder='ملاحظة (اختياري)'></div>")
+
+
+def cmd_decisions(args) -> int:
+    entries = []
+    for folder in args.source:
+        for path in sorted(Path(folder).glob("*.json")):
+            entries.extend(json.loads(path.read_text(encoding="utf-8")))
+    lead, sharia = _decision_items(entries)
+    lead_html = "".join(_item_html(x, (" · يخص أيضاً: " + "، ".join(x["also"])) if x["also"] else "") for x in lead)
+    sharia_html = "".join(
+        f"<h3>{escape(items[0]['title'])} <span class='tag'>{escape(eid)}</span></h3>" + "".join(_item_html(x) for x in items)
+        for eid, items in sorted(sharia.items()))
+    n_sharia = sum(len(v) for v in sharia.values())
+    html = (f"<!doctype html><html lang='ar' dir='rtl'><head><meta charset='utf-8'>"
+            f"<meta name='viewport' content='width=device-width, initial-scale=1'><title>{escape(args.title)}</title>"
+            f"<style>{DECISIONS_CSS}</style></head><body><h1>{escape(args.title)}</h1>"
+            f"<p class='muted'>{len(entries)} مسودة. بقي {len(lead)} قراراً لقائد الفريق و{n_sharia} للمراجع الشرعي. "
+            f"اختر لكل نقطة «موافق على المقترح» أو «غير موافق» مع ملاحظة، ثم انسخ القرارات وأرسلها. "
+            f"تُحفظ اختياراتك في هذا المتصفح.</p>"
+            f"<div class='bar'><button id='all'>موافق على كل المقترحات الباقية</button> "
+            f"<button id='copy'>انسخ قراراتي (<span id='count'>0</span>)</button></div>"
+            f"<h2>قرارات قائد الفريق ({len(lead)})</h2>{lead_html}"
+            f"<h2>قرارات المراجع الشرعي ({n_sharia})</h2>{sharia_html}"
+            f"<h2>قراراتك</h2><textarea id='out' readonly></textarea>"
+            f"<script>{DECISIONS_JS}</script></body></html>")
+    out = Path(args.output)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(html, encoding="utf-8")
+    print(f"{out} (lead {len(lead)}, sharia {n_sharia})")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -207,9 +326,13 @@ def main() -> int:
     p.add_argument("--all", action="store_true")
     p.add_argument("--source", help="a drafts JSON file or a folder of them, instead of content/kb.json")
     p.add_argument("--title", default="مراجعة الإجابات")
+    p = sub.add_parser("decisions")
+    p.add_argument("source", nargs="+", help="folders of draft JSON files")
+    p.add_argument("-o", "--output", default=str(ROOT / "private" / "decisions.html"))
+    p.add_argument("--title", default="ورقة القرارات")
     args = parser.parse_args()
     return {"check": cmd_check, "add": cmd_add, "approve": cmd_approve,
-            "status": cmd_status, "digest": cmd_digest}[args.cmd](args)
+            "status": cmd_status, "digest": cmd_digest, "decisions": cmd_decisions}[args.cmd](args)
 
 
 if __name__ == "__main__":
