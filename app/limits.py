@@ -26,7 +26,7 @@ def _parse(spec: str, default: tuple[int, int]) -> tuple[int, int]:
 SESSION = _parse(os.environ.get("RATE_SESSION", "20/600"), (20, 600))
 ADDRESS = _parse(os.environ.get("RATE_IP", "60/600"), (60, 600))
 GLOBAL_PER_MIN = int(os.environ.get("RATE_GLOBAL_PER_MIN", "60"))
-DAILY_LLM_CALLS = int(os.environ.get("DAILY_LLM_CALLS", "1200"))
+DAILY_LLM_CALLS = int(os.environ.get("DAILY_LLM_CALLS", "1000"))  # about two 500-request free quotas
 
 
 class Limiter:

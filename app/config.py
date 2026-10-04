@@ -2,10 +2,19 @@
 import os
 from dataclasses import dataclass
 
-DEFAULT_MODELS = {"gemini": "gemini-3.5-flash-lite", "anthropic": "claude-opus-5-5"}
-# gemini-3.5-flash allows only 20 free requests a day and took 9-15 s; flash-lite flagged 6/6 invented claims
-# and passed 2/2 clean replies (eval/check_verifier.py), in about a second.
-DEFAULT_VERIFY_MODELS = {"gemini": "gemini-3.5-flash-lite", "anthropic": "claude-opus-5-5"}
+# Each role names a chain of free-tier models, each with its own daily quota (gemini-3.5-flash-lite: 500 requests;
+# gemini-3.5-flash: 20, too few). The next model answers when one is out of quota or busy (app/gemini.py).
+# The verifier chain starts with the model that scored 8/8 in eval/check_verifier.py.
+DEFAULT_MODELS = {"gemini": "gemini-3.5-flash-lite,gemini-3.1-flash-lite", "anthropic": "claude-opus-5-5"}
+DEFAULT_CONVERSE_MODELS = {"gemini": "gemini-3.1-flash-lite,gemini-3.5-flash-lite", "anthropic": "claude-opus-5-5"}
+# gemma-4-26b-a4b-it flagged 6/6 invented claims when it answered but failed 2 of 8 calls, so it comes last.
+DEFAULT_VERIFY_MODELS = {"gemini": "gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemma-4-26b-a4b-it",
+                         "anthropic": "claude-opus-5-5"}
+
+
+def first(models: str) -> str:
+    """The first model of a comma-separated chain (providers without fallback use only this one)."""
+    return models.split(",")[0].strip()
 
 
 def _flag(name: str, default: bool) -> bool:
@@ -49,7 +58,7 @@ def load_settings() -> Settings:
     return Settings(
         router_provider=provider,
         router_model=router_model,
-        converse_model=os.environ.get("CONVERSE_MODEL", "").strip() or router_model,
+        converse_model=os.environ.get("CONVERSE_MODEL", "").strip() or DEFAULT_CONVERSE_MODELS.get(provider, router_model),
         verify_model=os.environ.get("VERIFY_MODEL", "").strip() or DEFAULT_VERIFY_MODELS.get(provider, router_model),
         converse_enabled=_flag("CONVERSE_ENABLED", True),
         converse_timeout_s=float(os.environ.get("CONVERSE_TIMEOUT_S", "15")),

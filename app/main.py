@@ -75,7 +75,9 @@ async def index() -> HTMLResponse:
 @app.api_route("/health", methods=["GET", "HEAD"])
 async def health() -> dict:
     return {"ok": True, "version": settings.version, "approved": len(APPROVED), "kb_hash": KB_HASH,
-            "llm": router.health(settings), "provider": settings.router_provider if settings.router_key else None}
+            "llm": router.health(settings), "provider": settings.router_provider if settings.router_key else None,
+            "models": {"router": settings.router_model, "converse": settings.converse_model,
+                       "verify": settings.verify_model}}
 
 
 @app.get("/api/selftest")

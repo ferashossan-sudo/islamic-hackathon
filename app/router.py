@@ -14,13 +14,13 @@ from typing import Literal
 import httpx
 from pydantic import BaseModel, ConfigDict, ValidationError
 
-from app.config import Settings
+from app import gemini
+from app.config import Settings, first
 from app.usage import log_event
 
 PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "router_v1.md"
 RULES = PROMPT_PATH.read_text(encoding="utf-8")
 PROMPT_VERSION = "router_v1:" + hashlib.sha256(RULES.encode("utf-8")).hexdigest()[:12]
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 RECENT_OUTCOMES: deque[bool] = deque(maxlen=20)  # for /health: more than half failing means degraded
 
 
@@ -66,29 +66,8 @@ def user_payload(message: str, prev_entry: dict | None) -> str:
 
 
 async def _gemini(s: Settings, system: str, payload: str, timeout: float) -> tuple[str, dict]:
-    body = {
-        "systemInstruction": {"parts": [{"text": system}]},
-        "contents": [{"role": "user", "parts": [{"text": payload}]}],
-        "generationConfig": {"temperature": 0, "maxOutputTokens": 400, "responseMimeType": "application/json",
-                             "responseSchema": _schema(upper=True)},
-        "safetySettings": [{"category": c, "threshold": "BLOCK_ONLY_HIGH"} for c in (
-            "HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH",
-            "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT")],
-    }
-    if "2.5-flash" in s.router_model:
-        body["generationConfig"]["thinkingConfig"] = {"thinkingBudget": 0}
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        r = await client.post(GEMINI_URL.format(model=s.router_model), json=body,
-                              headers={"x-goog-api-key": s.gemini_api_key})
-    r.raise_for_status()
-    data = r.json()
-    candidate = (data.get("candidates") or [{}])[0]
-    if candidate.get("finishReason") not in (None, "STOP"):
-        raise ValueError(f"finish {candidate.get('finishReason')}")
-    text = "".join(p.get("text", "") for p in candidate.get("content", {}).get("parts", []))
-    usage = data.get("usageMetadata", {})
-    return text, {"in": usage.get("promptTokenCount", 0), "out": usage.get("candidatesTokenCount", 0),
-                  "cache_read": usage.get("cachedContentTokenCount", 0), "usd": 0.0}
+    return await gemini.generate(s.gemini_api_key, s.router_model, system, payload, _schema(upper=True), timeout,
+                                 max_tokens=400)
 
 
 async def _anthropic(s: Settings, system: str, payload: str, timeout: float) -> tuple[str, dict]:
@@ -97,7 +76,7 @@ async def _anthropic(s: Settings, system: str, payload: str, timeout: float) -> 
     client = anthropic.AsyncAnthropic(api_key=s.anthropic_api_key, timeout=timeout, max_retries=0)
     rules, _, cat = system.partition("\n\n\x1e")
     response = await client.messages.create(
-        model=s.router_model, max_tokens=400,
+        model=first(s.router_model), max_tokens=400,
         system=[{"type": "text", "text": rules}, {"type": "text", "text": cat, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": payload}],
         output_config={"format": {"type": "json_schema", "schema": _schema(upper=False)}, "effort": "low"},
@@ -128,8 +107,8 @@ async def decide(message: str, prev_entry: dict | None, entries: list[dict], s: 
             LIMITER.count_llm_call()
             text, usage = await call(s, system, payload, timeout)
             decision = Decision.model_validate_json(text)
-            log_event(event="llm", call="router", model=s.router_model, ok=True,
-                      ms=round((perf_counter() - started) * 1000), **usage)
+            usage.setdefault("model", first(s.router_model))
+            log_event(event="llm", call="router", ok=True, ms=round((perf_counter() - started) * 1000), **usage)
             RECENT_OUTCOMES.append(True)
             return decision
         except (httpx.TransportError, httpx.HTTPStatusError) as exc:
@@ -141,7 +120,7 @@ async def decide(message: str, prev_entry: dict | None, entries: list[dict], s: 
             break
         except Exception:  # noqa: BLE001 - any provider failure falls back to the lexical path
             break
-    log_event(event="llm", call="router", model=s.router_model, ok=False, ms=round((perf_counter() - started) * 1000))
+    log_event(event="llm", call="router", ok=False, ms=round((perf_counter() - started) * 1000))
     RECENT_OUTCOMES.append(False)
     return None
 

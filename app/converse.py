@@ -8,12 +8,10 @@ import json
 from pathlib import Path
 from time import perf_counter
 
-import httpx
 from pydantic import BaseModel, ConfigDict, ValidationError
 
-from app import quran
-from app.config import Settings
-from app.router import GEMINI_URL
+from app import gemini, quran
+from app.config import Settings, first
 from app.usage import log_event
 
 PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "converse_v1.md"
@@ -68,37 +66,13 @@ class Verdict(BaseModel):
     unsupported: list[str]
 
 
-async def _gemini_json(s: Settings, model: str, system: str, payload_text: str, schema: dict, timeout: float,
-                       temperature: float) -> tuple[str, dict]:
-    body = {
-        "systemInstruction": {"parts": [{"text": system}]},
-        "contents": [{"role": "user", "parts": [{"text": payload_text}]}],
-        "generationConfig": {"temperature": temperature, "maxOutputTokens": 1200, "responseMimeType": "application/json",
-                             "responseSchema": schema},
-        "safetySettings": [{"category": c, "threshold": "BLOCK_ONLY_HIGH"} for c in (
-            "HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH",
-            "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT")],
-    }
-    if "lite" not in model:  # flash models think by default; lite models reject the setting
-        body["generationConfig"]["thinkingConfig"] = {"thinkingBudget": 0}
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        r = await client.post(GEMINI_URL.format(model=model), json=body, headers={"x-goog-api-key": s.gemini_api_key})
-    r.raise_for_status()
-    data = r.json()
-    candidate = (data.get("candidates") or [{}])[0]
-    if candidate.get("finishReason") not in (None, "STOP"):
-        raise ValueError(f"finish {candidate.get('finishReason')}")
-    text = "".join(p.get("text", "") for p in candidate.get("content", {}).get("parts", []))
-    usage = data.get("usageMetadata", {})
-    return text, {"in": usage.get("promptTokenCount", 0), "out": usage.get("candidatesTokenCount", 0), "usd": 0.0}
-
-
 async def _gemini(s: Settings, payload_text: str, timeout: float) -> tuple[str, dict]:
-    return await _gemini_json(s, s.converse_model, RULES, payload_text, SCHEMA_GEMINI, timeout, 0.0)
+    return await gemini.generate(s.gemini_api_key, s.converse_model, RULES, payload_text, SCHEMA_GEMINI, timeout)
 
 
 async def _gemini_verify(s: Settings, payload_text: str, timeout: float) -> tuple[str, dict]:
-    return await _gemini_json(s, s.verify_model, VERIFY_RULES, payload_text, VERIFY_SCHEMA_GEMINI, timeout, 0.0)
+    return await gemini.generate(s.gemini_api_key, s.verify_model, VERIFY_RULES, payload_text, VERIFY_SCHEMA_GEMINI,
+                                 timeout)
 
 
 async def _anthropic(s: Settings, payload_text: str, timeout: float) -> tuple[str, dict]:
@@ -106,7 +80,7 @@ async def _anthropic(s: Settings, payload_text: str, timeout: float) -> tuple[st
 
     client = anthropic.AsyncAnthropic(api_key=s.anthropic_api_key, timeout=timeout, max_retries=0)
     response = await client.messages.create(
-        model=s.converse_model, max_tokens=1200, system=RULES,
+        model=first(s.converse_model), max_tokens=1200, system=RULES,
         messages=[{"role": "user", "content": payload_text}],
         output_config={"format": {"type": "json_schema", "schema": SCHEMA_ANTHROPIC}, "effort": "low"},
     )
