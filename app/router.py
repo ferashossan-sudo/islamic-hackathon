@@ -29,7 +29,8 @@ class Decision(BaseModel):
     route: Literal["knowledge", "followup", "distress", "out_of_scope"]
     entry_id: str
     confidence: Literal["high", "medium", "low"]
-    oos_reason: Literal["none", "personal_fatwa", "fiqh", "hadith_check", "other_topic", "manipulation"]
+    oos_reason: Literal["none", "personal_fatwa", "fiqh", "hadith_check", "family_faith", "other_topic",
+                        "manipulation"]
     evidence_request: Literal["none", "hadith", "verse"]
     framing: str
 
@@ -38,7 +39,8 @@ def _schema(upper: bool) -> dict:
     """JSON schema for the decision; Gemini takes the OpenAPI subset with upper-case types."""
     t = (lambda name: name.upper()) if upper else (lambda name: name)
     enums = {"route": ["knowledge", "followup", "distress", "out_of_scope"], "confidence": ["high", "medium", "low"],
-             "oos_reason": ["none", "personal_fatwa", "fiqh", "hadith_check", "other_topic", "manipulation"],
+             "oos_reason": ["none", "personal_fatwa", "fiqh", "hadith_check", "family_faith", "other_topic",
+                           "manipulation"],
              "evidence_request": ["none", "hadith", "verse"]}
     props = {name: {"type": t("string"), "enum": values} for name, values in enums.items()}
     props["entry_id"] = {"type": t("string")}
@@ -59,10 +61,13 @@ def catalog(entries: list[dict]) -> str:
     return "Catalog of approved entries (id | theme | question | variants):\n" + "\n".join(lines)
 
 
-def user_payload(message: str, prev_entry: dict | None) -> str:
-    safe = message.replace("<", "‹").replace(">", "›")
+def user_payload(message: str, prev_entry: dict | None, prev_message: str = "") -> str:
+    def safe(text: str) -> str:
+        return text.replace("<", "‹").replace(">", "›")
+
     prev = f"{prev_entry['id']} | {prev_entry['question']}" if prev_entry else ""
-    return json.dumps({"prev_entry": prev, "message": safe}, ensure_ascii=False)
+    return json.dumps({"prev_entry": prev, "prev_message": safe(prev_message[:400]), "message": safe(message)},
+                      ensure_ascii=False)
 
 
 async def _gemini(s: Settings, system: str, payload: str, timeout: float) -> tuple[str, dict]:
@@ -92,13 +97,14 @@ async def _anthropic(s: Settings, system: str, payload: str, timeout: float) -> 
 PROVIDERS = {"gemini": _gemini, "anthropic": _anthropic}
 
 
-async def decide(message: str, prev_entry: dict | None, entries: list[dict], s: Settings) -> Decision | None:
+async def decide(message: str, prev_entry: dict | None, entries: list[dict], s: Settings,
+                 prev_message: str = "") -> Decision | None:
     """One classification call. None means: use the lexical path."""
     call = PROVIDERS.get(s.router_provider)
     if call is None or not s.router_key or not entries:
         return None
     system = RULES + "\n\n\x1e" + catalog(entries)
-    payload = user_payload(message, prev_entry)
+    payload = user_payload(message, prev_entry, prev_message)
     started = perf_counter()
     from app.limits import LIMITER
 

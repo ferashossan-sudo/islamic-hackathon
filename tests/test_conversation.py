@@ -94,3 +94,10 @@ def test_third_repeat_gets_summary_guidance_and_referral(loaded):
 def test_trigram_similarity():
     assert arabic.trigram_similarity("كيف أتأكد إن الله موجود؟", "كيف اتاكد ان الله موجود") == 1.0
     assert arabic.trigram_similarity("هل الكون صدفة", "ليش فيه شر") < 0.2
+
+
+def test_hadith_grade_questions_are_referred_but_a_request_for_a_sound_hadith_is_not():
+    from app.pipeline import _asks_hadith_grade
+    assert _asks_hadith_grade("حديث «اطلبوا العلم ولو بالصين» صحيح ولا ضعيف؟")
+    assert _asks_hadith_grade("وش صحة حديث اطلبوا العلم ولو في الصين؟")
+    assert not _asks_hadith_grade("عطني حديث صحيح يقول إن الأرض كروية")

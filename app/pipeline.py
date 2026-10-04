@@ -188,8 +188,20 @@ def lexical_decision(message: str, s: Settings, req: ChatRequest | None = None) 
 
 
 REFERRALS = {"personal_fatwa": "referral_personal_fatwa", "fiqh": "referral_fiqh",
-             "hadith_check": "referral_hadith_check", "other_topic": "referral_other_topic",
-             "manipulation": "referral_manipulation", "none": "referral_other_topic"}
+             "hadith_check": "referral_hadith_check", "family_faith": "referral_family_faith",
+             "other_topic": "referral_other_topic", "manipulation": "referral_manipulation",
+             "none": "referral_other_topic"}
+_HADITH_GRADE = re.compile(r"حديث")
+# Asking for a grade («صحيح ولا ضعيف؟»، «وش صحته؟»), not asking for a sound hadith («عطني حديث صحيح»).
+_GRADE_WORDS = re.compile(r"(?:صحيح|ضعيف|موضوع|ثابت)\s*(?:ولا|او|أو|؟|\?)|(?:وش|ما|مدى)\s+صح[ةه]|صحت[هه]|"
+                          r"درجت[هه]|درج[ةه]\s+(?:الحديث|هذا)|يصح\s|مكذوب")
+_SOURCE_ASK = re.compile(r"مصدر|المصدر|مرجع|من وين|منين|وين لقيت|جايب")
+
+
+def _asks_hadith_grade(message: str) -> bool:
+    return bool(_HADITH_GRADE.search(message) and _GRADE_WORDS.search(message))
+
+
 MAYBE_MIN_SCORE = 0.2
 
 
@@ -221,6 +233,8 @@ def model_decision(decision, message: str, prev: dict | None, req: ChatRequest, 
     if decision.route == "distress":
         return distress_response(message, s)
     if decision.route == "out_of_scope":
+        if decision.oos_reason == "manipulation" and prev is not None and _SOURCE_ASK.search(message):
+            return _followup(prev, req, s)  # «وش المصدر اللي جايب منه هالكلام؟» asks for the sources, not a role
         key = REFERRALS[decision.oos_reason]
         extra = _suggest_block(s) if key == "referral_other_topic" else []
         return ChatResponse(kind="refer", version=s.version, blocks=[message_block(key), *extra])
@@ -231,6 +245,8 @@ def model_decision(decision, message: str, prev: dict | None, req: ChatRequest, 
         return repeat_response(resolved["id"], s, degraded=False)
     if decision.route == "followup" and prev is not None:
         return _followup(prev, req, s)
+    if entry is None and _asks_hadith_grade(message):
+        return ChatResponse(kind="refer", version=s.version, blocks=[message_block("referral_hadith_check")])
     if decision.evidence_request != "none":
         has = bool(entry and (entry.get("hadiths") if decision.evidence_request == "hadith" else entry.get("verses")))
         if not has:
@@ -353,7 +369,8 @@ async def _respond(message: str, req: ChatRequest, s: Settings) -> ChatResponse:
         return abstain(s)
     if s.llm_enabled and req.mode != "offline" and LIMITER.llm_allowed():
         prev = STATE.entries.get(req.context.prev_entry_id or "")
-        decision = await router.decide(message, prev, list(STATE.entries.values()), s)
+        prev_message = next((h.text for h in reversed(req.history) if h.role == "user"), "")
+        decision = await router.decide(message, prev, list(STATE.entries.values()), s, prev_message)
         if decision is not None:
             return await attach_chat(model_decision(decision, message, prev, req, s), message, req, s)
     # Degraded mode: model disabled, offline mode requested, or the call failed.
