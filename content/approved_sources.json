@@ -1,5 +1,5 @@
 {
-  "note": "Domains allowed in KB links. Tafsir links must also be in tafsir_domains. NASA is excluded (its guidelines restrict use in AI products).",
+  "note": "Domains allowed in KB links. Tafsir links must also be in tafsir_domains. NASA is excluded (its guidelines restrict use in AI products). Saudi scholarly sources (alifta.gov.sa, binbaz.org.sa, binothaimeen.net, alfawzan.af.org.sa) are used for explanation and creed with attribution; verse meanings still come only from the approved tafsir sources.",
   "domains": [
     "dorar.net",
     "hadeethenc.com",
@@ -15,7 +15,9 @@
     "binbaz.org.sa",
     "islamqa.info",
     "shamela.ws",
-    "tafsir.net"
+    "tafsir.net",
+    "binothaimeen.net",
+    "alfawzan.af.org.sa"
   ],
   "tafsir_domains": [
     "dorar.net",

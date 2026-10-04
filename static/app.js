@@ -44,8 +44,28 @@
 
   fetch("/api/config")
     .then((r) => r.json())
-    .then((c) => { config = c; })
+    .then((c) => {
+      config = c;
+      renderFeatured(c.featured || []);
+    })
     .catch(() => {});
+
+  // Suggested questions under the welcome message: approved entries marked as featured.
+  function renderFeatured(items) {
+    const welcome = document.querySelector(".msg.welcome");
+    if (!welcome || !items.length) return;
+    const box = el("div", "block block-related featured");
+    items.forEach((item) => {
+      const chip = el("button", "chip", item.question);
+      chip.type = "button";
+      chip.addEventListener("click", () => {
+        input.value = item.question;
+        submit();
+      });
+      box.append(chip);
+    });
+    welcome.append(box);
+  }
 
   function label(key, fallback) {
     return (config.labels && config.labels[key]) || fallback;

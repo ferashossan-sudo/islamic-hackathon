@@ -80,6 +80,7 @@ async def config() -> dict:
         "suggest_form_url": settings.suggest_form_url,
         "labels": texts.pairs("ui_labels"),
         "texts": {key: texts.text(key) for key in ("network_error", "support_line", "degraded_badge", "degraded_mode")},
+        "featured": [{"id": e["id"], "question": e["question"]} for e in APPROVED if e.get("featured")][:6],
     }
 
 
