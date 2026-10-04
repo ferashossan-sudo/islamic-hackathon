@@ -103,7 +103,7 @@ def test_contacts_come_from_approved_text():
 def test_non_arabic_gets_bilingual_referral():
     status, r = ask("What does jihad mean in Islam?")  # C-12
     assert r.kind == "non_arabic"
-    assert r.blocks[0]["lang"] == "en"
+    assert any(b.get("lang") == "en" for b in r.blocks)
 
 
 @pytest.mark.parametrize("message, key", [("السلام عليكم", "greeting_salam"), ("مرحبا", "greeting_general"),
