@@ -82,6 +82,8 @@ def check(name: str, arg: str, response, case: dict, calls: int, responses: list
         return bool(sharia and sharia["tafsir"] and all(t["label"] for t in sharia["tafsir"]))
     if name == "layer_in":
         return response.layer in arg.split(",")
+    if name == "not_distress":
+        return response.kind != "distress"
     if name == "misquote_notice":
         return any(b.get("key") == "misquote_notice" and b.get("ref") == arg for b in blocks)
     if name == "repeat_guidance_on_turn":
