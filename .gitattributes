@@ -1,0 +1,6 @@
+* text=auto eol=lf
+data/quran/** -text
+*.gz binary
+*.woff2 binary
+*.ttf binary
+*.png binary

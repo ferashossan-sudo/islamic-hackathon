@@ -28,3 +28,11 @@ desktop.ini
 
 # Claude Code personal settings
 .claude/settings.local.json
+
+# Project-specific (never commit)
+eval/private/
+private/
+drafts*.csv
+*.responses.csv
+data/quran/kfgqpc*
+.pytest_cache/
