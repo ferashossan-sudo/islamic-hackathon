@@ -19,13 +19,51 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from app import arabic, guards, main, pipeline, quran, router  # noqa: E402
+from app import arabic, guards, limits, main, pipeline, quran, router  # noqa: E402
 from app.schemas import ChatContext, ChatRequest, RecentItem  # noqa: E402
 
 SETS = {"critical": ROOT / "eval" / "cases" / "critical.jsonl", "dev": ROOT / "eval" / "cases" / "dev.jsonl"}
 IJAZ = ("الإعجاز العلمي", "سبق القرآن", "أثبت العلم")
 CONSENSUS = ("أجمع العلماء", "اتفق العلماء", "بإجماع")
 PENDING: set[str] = set()
+
+
+def segments_text(segments) -> str:
+    out = []
+    for seg in segments or []:
+        if seg.get("type") == "verse":
+            out.append(f"﴿{seg['text']}﴾ [{seg['label']}]")
+        elif seg.get("type") == "hadith":
+            out.append(f"«{seg['text']}» ({seg['line']})")
+        else:
+            out.append(seg.get("text", ""))
+    return "".join(out)
+
+
+def plain_text(response) -> str:
+    """What the person reads, as plain text, for blind grading and the automatic checks."""
+    lines = []
+    for b in response.blocks:
+        t = b["type"]
+        if t == "chat":
+            lines.append(segments_text(b["segments"]))
+        elif t in ("message", "notice", "framing"):
+            lines.append(b["text"])
+        elif t == "answer":
+            lines.append(segments_text(b["summary"]))
+            if b.get("body"):
+                lines.append(segments_text(b["body"]))
+        elif t == "sharia":
+            lines += [f"﴿{v['text']}﴾ [{v['label']}]" for v in b["verses"]]
+            lines += [f"{x['mufassir']}: {x['summary']}" for x in b["tafsir"]]
+            lines += [f"«{h['text']}» ({h['line']})" for h in b["hadiths"]]
+        elif t == "science":
+            lines += [f"{x['claim']} ({x['degree_label']}، {x['source']})" for x in b["items"]]
+        elif t == "sources":
+            lines.append("المصادر: " + "، ".join(f"{x['name']} {x['url']}" for x in b["items"]))
+        elif t == "referral":
+            lines.append(b.get("text", ""))
+    return "\n".join(x.strip() for x in lines if x and x.strip())
 
 
 def all_text(response) -> str:
@@ -137,7 +175,9 @@ async def run_case(case: dict, settings, sleep: float) -> dict:
             failed.append(spec)
     return {"id": case["id"], "category": case.get("category"), "kind": final.kind, "entry_id": final.entry_id,
             "layer": final.layer, "degraded": final.degraded, "llm_calls": calls,
-            "passed": not failed, "failed_checks": failed, "pending_checks": pending}
+            "chat": any(b["type"] == "chat" for b in final.blocks),
+            "passed": not failed, "failed_checks": failed, "pending_checks": pending,
+            "_text": plain_text(final)}
 
 
 async def main_async(args) -> int:
@@ -147,16 +187,25 @@ async def main_async(args) -> int:
     settings = main.settings
     if args.system == "lexical":
         settings = dataclasses.replace(settings, llm_enabled=False)
+    # The evaluation is not a visitor: no rate limits, and the daily model budget does not stop it.
+    limits.LIMITER.check = lambda *a, **k: 0
+    limits.DAILY_LLM_CALLS = 10 ** 6
     stamp = datetime.now(timezone(timedelta(hours=3))).strftime("%Y%m%d-%H%M")
-    out = ROOT / "eval" / "runs" / f"{args.set}_{args.system}_{stamp}.jsonl"
+    name = f"{args.set}_{args.system}_{stamp}"
+    out = ROOT / "eval" / "runs" / f"{name}.jsonl"
+    texts_out = ROOT / "eval" / "private" / "runs" / f"{name}.texts.jsonl"  # never committed (.gitignore)
     out.parent.mkdir(parents=True, exist_ok=True)
+    texts_out.parent.mkdir(parents=True, exist_ok=True)
     rows = []
-    with out.open("w", encoding="utf-8", newline="\n") as f:
+    with out.open("w", encoding="utf-8", newline="\n") as f, texts_out.open("w", encoding="utf-8", newline="\n") as ft:
         for run in range(1, args.runs + 1):
             for case in cases:
                 row = {"run": run, **await run_case(case, settings, args.sleep if args.system == "ours" else 0)}
+                text = row.pop("_text")
                 rows.append(row)
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
+                ft.write(json.dumps({"id": row["id"], "run": run, "system": args.system, "text": text},
+                                    ensure_ascii=False) + "\n")
                 mark = "✓" if row["passed"] else "✗"
                 print(f"{mark} run{run} {row['id']} {row['kind']} {row['entry_id'] or ''} "
                       f"{'degraded ' if row['degraded'] else ''}{' '.join(row['failed_checks'])}")
@@ -174,7 +223,7 @@ def main_cli() -> int:
     parser.add_argument("--set", choices=list(SETS), default="critical")
     parser.add_argument("--system", choices=["ours", "lexical"], default="ours")
     parser.add_argument("--runs", type=int, default=1)
-    parser.add_argument("--sleep", type=float, default=4.5, help="seconds before each model call (free-tier rate limit)")
+    parser.add_argument("--sleep", type=float, default=6.0, help="seconds before each message (free-tier rate limit)")
     parser.add_argument("--only", help="comma-separated case ids")
     return asyncio.run(main_async(parser.parse_args()))
 
