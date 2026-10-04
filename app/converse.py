@@ -98,7 +98,7 @@ async def _gemini(s: Settings, payload_text: str, timeout: float) -> tuple[str, 
 
 
 async def _gemini_verify(s: Settings, payload_text: str, timeout: float) -> tuple[str, dict]:
-    return await _gemini_json(s, s.router_model, VERIFY_RULES, payload_text, VERIFY_SCHEMA_GEMINI, timeout, 0.0)
+    return await _gemini_json(s, s.verify_model, VERIFY_RULES, payload_text, VERIFY_SCHEMA_GEMINI, timeout, 0.0)
 
 
 async def _anthropic(s: Settings, payload_text: str, timeout: float) -> tuple[str, dict]:

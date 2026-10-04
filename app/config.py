@@ -3,6 +3,8 @@ import os
 from dataclasses import dataclass
 
 DEFAULT_MODELS = {"gemini": "gemini-3.5-flash-lite", "anthropic": "claude-opus-5-5"}
+# The verifier judges finer distinctions (claim vs. analogy); a separate model also spreads free-tier limits.
+DEFAULT_VERIFY_MODELS = {"gemini": "gemini-3.5-flash", "anthropic": "claude-opus-5-5"}
 
 
 def _flag(name: str, default: bool) -> bool:
@@ -21,6 +23,7 @@ class Settings:
     router_timeout_s: float
     router_retry_timeout_s: float
     converse_model: str
+    verify_model: str
     converse_enabled: bool
     converse_timeout_s: float
     confidence_min: str
@@ -46,6 +49,7 @@ def load_settings() -> Settings:
         router_provider=provider,
         router_model=router_model,
         converse_model=os.environ.get("CONVERSE_MODEL", "").strip() or router_model,
+        verify_model=os.environ.get("VERIFY_MODEL", "").strip() or DEFAULT_VERIFY_MODELS.get(provider, router_model),
         converse_enabled=_flag("CONVERSE_ENABLED", True),
         converse_timeout_s=float(os.environ.get("CONVERSE_TIMEOUT_S", "15")),
         gemini_api_key=os.environ.get("GEMINI_API_KEY", ""),
