@@ -29,7 +29,7 @@ class ChatRequest(BaseModel):
     context: ChatContext = Field(default_factory=ChatContext)
 
 
-Kind = Literal["answer", "abstain", "refer", "distress", "limit", "non_arabic"]
+Kind = Literal["answer", "abstain", "refer", "distress", "limit", "non_arabic", "smalltalk"]
 Layer = Literal["summary", "explain", "body"]
 
 

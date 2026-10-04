@@ -25,3 +25,13 @@ def pairs(key: str) -> dict[str, str]:
         if sep:
             out[name.strip()] = value.strip()
     return out
+
+
+@lru_cache(maxsize=1)
+def _all_en() -> dict[str, str]:
+    data = json.loads(FIXED_TEXTS.read_text(encoding="utf-8"))
+    return {key: item.get("text_en", "") for key, item in data.items()}
+
+
+def text_en(key: str) -> str:
+    return _all_en()[key]

@@ -18,6 +18,7 @@ settings = load_settings()
 INDEX_HTML = render_index(settings)
 APPROVED = kb.load_approved()  # refuses to start if an approved entry breaks a rule
 KB_HASH = kb.kb_hash(APPROVED)
+pipeline.load(APPROVED)
 
 SECURITY_HEADERS = {
     "Content-Security-Policy": (
@@ -78,7 +79,7 @@ async def config() -> dict:
         "version": settings.version,
         "suggest_form_url": settings.suggest_form_url,
         "labels": texts.pairs("ui_labels"),
-        "texts": {key: texts.text(key) for key in ("network_error", "support_line", "degraded_badge")},
+        "texts": {key: texts.text(key) for key in ("network_error", "support_line", "degraded_badge", "degraded_mode")},
     }
 
 

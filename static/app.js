@@ -57,30 +57,172 @@
 
   function addUserMessage(text) {
     const card = el("article", "msg user");
+    card.dir = "auto";
     paragraphs(card, text);
     log.append(card);
     scrollToEnd(card);
   }
 
+  function externalLink(text, url, className) {
+    const link = el("a", className || null, text);
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    return link;
+  }
+
+  // Text with verse segments: verses come from the mushaf on the server and are shown with their reference.
+  function segmentsInto(parent, segments) {
+    let paragraph = el("p");
+    parent.append(paragraph);
+    (segments || []).forEach((seg) => {
+      if (seg.type === "verse") {
+        paragraph.append(el("span", "verse-inline", "﴿" + seg.text + "﴾"), " ", el("bdi", "verse-ref", "[" + seg.label + "]"));
+        return;
+      }
+      String(seg.text).split("\n").forEach((part, i) => {
+        if (i > 0) {
+          paragraph = el("p");
+          parent.append(paragraph);
+        }
+        if (part) paragraph.append(part);
+      });
+    });
+    parent.querySelectorAll("p").forEach((p) => { if (!p.textContent.trim()) p.remove(); });
+  }
+
+  function section(card, title, className) {
+    const box = el("section", "block " + (className || ""));
+    if (title) box.append(el("h3", "block-title", title));
+    card.append(box);
+    return box;
+  }
+
+  let degradedShown = false;
+
+  const renderers = {
+    message(card, b) {
+      const box = el("div", "block block-message");
+      if (b.lang === "en") {
+        box.lang = "en";
+        box.dir = "ltr";
+      }
+      paragraphs(box, b.text);
+      card.append(box);
+    },
+    notice(card, b) {
+      const box = el("div", "block block-notice");
+      paragraphs(box, b.text);
+      card.append(box);
+    },
+    referral(card, b) {
+      const box = el("div", "block block-referral");
+      if (b.url) box.append(externalLink(b.label || b.url, b.url, "button-link"));
+      if (b.text) box.append(el("p", "hint", b.text));
+      card.append(box);
+    },
+    contacts(card, b) {
+      const list = el("div", "block contacts");
+      (b.items || []).forEach((item) => {
+        const call = el("a", "call");
+        call.href = "tel:" + item.number;
+        call.append(el("span", "call-label", item.label), el("bdi", "call-number", item.number));
+        list.append(call);
+        const meta = [item.note, item.source ? "المصدر: " + item.source : ""].filter(Boolean).join(" · ");
+        if (meta) list.append(el("p", "hint", meta));
+      });
+      card.append(list);
+    },
+    answer(card, b) {
+      const box = el("section", "block block-answer");
+      const tags = el("p", "tags");
+      tags.append(el("span", "tag tag-reviewed", b.badge), el("span", "tag", b.level));
+      box.append(tags);
+      segmentsInto(box, b.summary);
+      if (b.explain_simple && b.open === "explain") {
+        const simple = el("div", "explain");
+        segmentsInto(simple, b.explain_simple);
+        box.append(simple);
+      }
+      const full = el("details", "full-answer");
+      if (b.open === "body") full.open = true;
+      full.append(el("summary", null, label("read_full", "اقرأ الإجابة كاملة")));
+      segmentsInto(full, b.body);
+      box.append(full);
+      card.append(box);
+    },
+    sharia(card, b) {
+      const box = section(card, label("sharia_texts", "النصوص الشرعية"), "block-sharia");
+      (b.verses || []).forEach((v) => {
+        box.append(el("p", "verse", "﴿" + v.text + "﴾"), el("p", "verse-ref", "[" + v.label + "]"));
+      });
+      (b.tafsir || []).forEach((t) => {
+        const item = el("div", "tafsir");
+        paragraphs(item, t.summary);
+        const line = el("p", "hint", t.label + " · ");
+        line.append(externalLink(label("verify", "تحقق من المصدر"), t.url));
+        item.append(line);
+        box.append(item);
+      });
+      (b.hadiths || []).forEach((h) => {
+        const item = el("div", "hadith");
+        item.append(el("p", null, h.text));
+        const line = el("p", "hint", h.line + " · ");
+        line.append(externalLink(label("verify", "تحقق من المصدر"), h.url));
+        item.append(line);
+        if (h.via) item.append(el("p", "hint", h.via));
+        box.append(item);
+      });
+    },
+    science(card, b) {
+      const box = section(card, label("science", "معلومات علمية"), "block-science");
+      box.append(el("p", "hint", b.note));
+      (b.items || []).forEach((s) => {
+        const item = el("div", "science-item");
+        item.append(el("span", "tag degree degree-" + s.degree, s.degree_label), el("p", null, s.claim));
+        const line = el("p", "hint", s.source + " · ");
+        line.append(externalLink(label("verify", "تحقق من المصدر"), s.url));
+        item.append(line);
+        box.append(item);
+      });
+    },
+    sources(card, b) {
+      const box = section(card, label("sources", "المصادر"), "block-sources");
+      const list = el("ul");
+      (b.items || []).forEach((s) => {
+        const li = el("li");
+        li.append(externalLink([s.name, s.locator].filter(Boolean).join(" "), s.url));
+        list.append(li);
+      });
+      box.append(list);
+    },
+    review(card, b) {
+      card.append(el("p", "hint review-line", b.text));
+    },
+    related(card, b) {
+      const box = section(card, label("related", "أسئلة مرتبطة"), "block-related");
+      (b.items || []).forEach((r) => {
+        const chip = el("button", "chip", r.question);
+        chip.type = "button";
+        chip.addEventListener("click", () => {
+          input.value = r.question;
+          submit();
+        });
+        box.append(chip);
+      });
+    },
+  };
+
   function renderResponse(data) {
     const card = el("article", "msg bot kind-" + (data.kind || "abstain"));
+    if (data.degraded) {
+      const text = config.texts && (degradedShown ? config.texts.degraded_badge : config.texts.degraded_mode);
+      if (text) card.append(el("p", degradedShown ? "tag tag-degraded" : "block block-notice", text));
+      degradedShown = true;
+    }
     (data.blocks || []).forEach((block) => {
-      if (block.type === "message" || block.type === "notice") {
-        const box = el("div", "block block-" + block.type);
-        paragraphs(box, block.text);
-        card.append(box);
-      } else if (block.type === "referral") {
-        const box = el("div", "block block-referral");
-        if (block.url) {
-          const link = el("a", "button-link", block.label || block.url);
-          link.href = block.url;
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
-          box.append(link);
-        }
-        if (block.text) box.append(el("p", "hint", block.text));
-        card.append(box);
-      }
+      const render = renderers[block.type];
+      if (render) render(card, block);
     });
     log.append(card);
     scrollToEnd(card);

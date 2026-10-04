@@ -261,3 +261,97 @@ main {
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto !important; transition: none !important; }
 }
+
+/* Answer card layers */
+.block-title {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  color: var(--accent);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-block-end: 8px;
+}
+
+.tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.tag-reviewed { border-color: var(--accent); color: var(--accent); }
+.tag-degraded { margin: 0 0 8px; }
+
+.verse,
+.verse-inline {
+  font-family: "Amiri Quran", "KFGQPC Uthmanic Script HAFS", "Amiri", "Traditional Arabic", serif;
+  font-size: 1.25rem;
+  line-height: 2.1;
+}
+
+.verse { margin: 4px 0 0; }
+.verse-ref { margin: 0 0 8px; color: var(--muted); font-size: 0.85rem; }
+
+.tafsir,
+.hadith,
+.science-item {
+  border-inline-start: 3px solid var(--border);
+  padding-inline-start: 10px;
+  margin-block: 8px;
+}
+
+.degree-fact { border-color: var(--accent); color: var(--accent); }
+.degree-hypothesis { border-style: dashed; }
+
+.full-answer summary,
+.chip {
+  min-block-size: 44px;
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.full-answer summary { display: flex; align-items: center; font-weight: 600; }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  margin: 4px 0 4px 6px;
+  padding-inline: 14px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--surface);
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: start;
+}
+
+.review-line { margin-block-start: 12px; }
+
+/* Distress: calm, distinct, numbers first */
+.msg.kind-distress {
+  background: var(--user);
+  border-color: var(--accent);
+}
+
+.contacts { display: grid; gap: 4px; }
+
+.call {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-block-size: 52px;
+  padding-inline: 16px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.call-number { font-size: 1.15rem; direction: ltr; }

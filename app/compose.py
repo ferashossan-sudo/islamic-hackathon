@@ -1,0 +1,89 @@
+"""Builds answer blocks from an approved entry, the mushaf and fixed texts only, then checks them (step 11).
+
+Nothing here comes from the model. The framing sentence, when present, is added by the pipeline after G5.
+"""
+from app import kb, quran, texts
+
+
+def segments(text: str) -> list[dict]:
+    """Split text on {{q:s:a}} placeholders into text and verse segments; verse text comes from the mushaf."""
+    out, pos = [], 0
+    for match in kb.VERSE_PLACEHOLDER.finditer(text or ""):
+        if match.start() > pos:
+            out.append({"type": "text", "text": text[pos:match.start()]})
+        out.append(verse_item(match.group(1)))
+        pos = match.end()
+    if pos < len(text or ""):
+        out.append({"type": "text", "text": text[pos:]})
+    return out
+
+
+def verse_item(ref: str) -> dict:
+    return {"type": "verse", "ref": ref, "label": quran.label(ref),
+            "text": " ".join(v.text for v in quran.lookup(ref))}
+
+
+def _fill(template: str, **values: str) -> str:
+    for name, value in values.items():
+        template = template.replace("{" + name + "}", value)
+    return template
+
+
+def answer_blocks(entry: dict, approved: dict[str, dict], layer: str = "summary") -> list[dict]:
+    source = entry["source"]
+    badge_key = "badge_reviewed_paraphrase" if entry.get("transfer") == "paraphrase" else "badge_reviewed"
+    blocks = []
+    if entry["level"] == "C":
+        blocks.append({"type": "notice", "key": "level_c_notice", "text": texts.text("level_c_notice")})
+    blocks.append({
+        "type": "answer",
+        "badge": _fill(texts.text(badge_key), المصدر=source["name"]),
+        "level": texts.pairs("level_labels")[entry["level"]],
+        "summary": segments(entry["summary"]),
+        "explain_simple": segments(entry["explain_simple"]) if entry.get("explain_simple") else None,
+        "body": segments(entry["body"]),
+        "open": layer,
+    })
+    tafsir = [{"mufassir": t["mufassir"], "summary": t["summary"], "url": t["url"],
+               "label": _fill(texts.text("tafsir_label"), المفسر=t["mufassir"], المصدر=t["source"])}
+              for t in entry.get("tafsir", [])]
+    hadiths = [{"text": h["text"], "url": h["url"],
+                "line": _fill(texts.text("hadith_attribution_line"), المصدر=h["source"], الرقم=str(h["number"]),
+                              الدرجة=h["grade"], المحدث=h["grader"]),
+                "via": texts.text("hadith_via_hadeethenc") if h.get("via") == "hadeethenc" else ""}
+               for h in entry.get("hadiths", [])]
+    verses = [verse_item(ref) for ref in entry.get("verses", [])]
+    if verses or tafsir or hadiths:
+        blocks.append({"type": "sharia", "verses": verses, "tafsir": tafsir, "hadiths": hadiths})
+    if entry.get("science"):
+        labels = texts.pairs("science_degree_labels")
+        blocks.append({"type": "science", "note": texts.text("science_block_note"),
+                       "items": [{"claim": s["claim"], "degree": s["degree"], "degree_label": labels[s["degree"]],
+                                  "source": s["source"], "url": s["url"]} for s in entry["science"]]})
+    blocks.append({"type": "sources", "items": [{"name": source["name"], "locator": source.get("locator", ""),
+                                                 "url": source["url"]}]})
+    review_key = "reviewer_attribution_ai_drafted" if entry.get("drafted_with_ai") else "reviewer_attribution"
+    blocks.append({"type": "review", "text": _fill(texts.text(review_key), التاريخ=entry["review"]["reviewed_at"])})
+    related = [{"id": rid, "question": approved[rid]["question"]} for rid in entry.get("related", []) if rid in approved]
+    if related:
+        blocks.append({"type": "related", "items": related})
+    final_check(blocks, entry)
+    return blocks
+
+
+def final_check(blocks: list[dict], entry: dict) -> None:
+    """Step 11: every verse equals the mushaf, every hadith and source equals the approved entry.
+
+    Raises AssertionError; the pipeline turns that into the fail-closed card (G12).
+    """
+    for block in blocks:
+        verses = [s for s in block.get("summary", []) + block.get("body", []) + (block.get("explain_simple") or [])
+                  if s.get("type") == "verse"] + block.get("verses", [])
+        for verse in verses:
+            assert verse["text"] == " ".join(v.text for v in quran.lookup(verse["ref"])), verse["ref"]
+        for shown, stored in zip(block.get("hadiths", []), entry.get("hadiths", [])):
+            assert shown["text"] == stored["text"] and shown["url"] == stored["url"]
+        if block["type"] == "sources":
+            assert block["items"][0]["url"] == entry["source"]["url"]
+        if block["type"] == "sharia":
+            assert len(block["hadiths"]) == len(entry.get("hadiths", [])), "hadith count"
