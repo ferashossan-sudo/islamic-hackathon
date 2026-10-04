@@ -277,7 +277,7 @@ def _item_html(item: dict, context: str = "") -> str:
 
 
 def cmd_decisions(args) -> int:
-    entries = []
+    entries = [e for e in kb.read_all() if e.get("status") != "approved"]  # batch 1, still in review
     for folder in args.source:
         for path in sorted(Path(folder).glob("*.json")):
             entries.extend(json.loads(path.read_text(encoding="utf-8")))
