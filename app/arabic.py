@@ -3,7 +3,7 @@ import re
 import unicodedata
 
 # Harakat, Quranic annotation marks, superscript alef, tatweel, and invisible characters.
-_MARKS = re.compile("[ؐ-ًؚ-ٰٟۖ-ۭ࣓-ࣿـ­​-‏⁠-⁤﻿]")
+_MARKS = re.compile("[\u0610-\u061a\u064b-\u065f\u0670\u06d6-\u06ed\u08d3-\u08ff\u0640\u00ad\u200b-\u200f\u2060-\u2064\ufeff]")
 _LETTERS = str.maketrans({
     "أ": "ا", "إ": "ا", "آ": "ا", "ٱ": "ا", "ٲ": "ا", "ٳ": "ا",
     "ى": "ي", "ی": "ي", "ئ": "ي", "ة": "ه", "ؤ": "و", "ء": "", "ک": "ك",
@@ -33,3 +33,12 @@ def arabic_ratio(text: str) -> float:
     if not letters:
         return 1.0
     return sum(1 for ch in letters if _ARABIC_LETTER.match(ch)) / len(letters)
+
+
+def trigram_similarity(a: str, b: str) -> float:
+    """Jaccard similarity of character trigrams of the normalized texts (same rule as static/app.js)."""
+    def grams(text: str) -> set[str]:
+        t = " ".join(words(text))
+        return {t[i:i + 3] for i in range(len(t) - 2)} if len(t) >= 3 else {t}
+    ga, gb = grams(a), grams(b)
+    return len(ga & gb) / len(ga | gb) if ga | gb else 0.0

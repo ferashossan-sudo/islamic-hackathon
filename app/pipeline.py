@@ -2,7 +2,7 @@
 import re
 from dataclasses import dataclass, field
 
-from app import arabic, compose, distress, guards, router, texts
+from app import arabic, compose, distress, guards, quran, router, texts
 from app.config import Settings
 from app.lexical import LexicalIndex
 from app.schemas import ChatRequest, ChatResponse
@@ -15,7 +15,7 @@ LEX_MARGIN = 0.10  # ...and this far ahead of the second entry (tuned on dev on 
 RULING_WORDS = ("حكم", "يجوز", "حلال", "حرام", "فتوي", "طلاق")
 
 # Zero-width characters, bidi controls, soft hyphen and BOM.
-_INVISIBLE = re.compile("[­​-‏‪-‮⁠-⁤⁦-⁩﻿]")
+_INVISIBLE = re.compile("[\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]")
 _SALAM = ("السلام عليكم", "السلام عليكم ورحمه الله", "السلام عليكم ورحمه الله وبركاته", "سلام عليكم", "السلام")
 _GREETINGS = ("مرحبا", "هلا", "اهلا", "هلا والله", "صباح الخير", "مساء الخير", "hi", "hello")
 _THANKS = ("شكرا", "شكرا لك", "جزاك الله خير", "جزاك الله خيرا", "الله يعطيك العافيه", "مشكور", "يعطيك العافيه")
@@ -113,6 +113,35 @@ def smalltalk(message: str, s: Settings) -> ChatResponse | None:
     return None
 
 
+def misquote_block(message: str) -> list[dict]:
+    """G3: a verse quoted with a mistake gets a gentle notice with the mushaf text."""
+    found = quran.find_misquote(message)
+    if found is None:
+        return []
+    v = found.verse
+    text = (texts.text("misquote_notice").replace("{النص}", v.text)
+            .replace("{السورة}", quran.sura_name(v.sura)).replace("{رقم الآية}", str(v.aya)))
+    return [{"type": "notice", "key": "misquote_notice", "text": text, "ref": v.ref}]
+
+
+def repeat_response(entry_id: str, s: Settings, degraded: bool) -> ChatResponse:
+    """M12, C-22: the same question a third time gets the summary, the approved guidance and a referral."""
+    entry = STATE.entries[entry_id]
+    blocks = [message_block("notice_repeat")]
+    answer_block = next(b for b in compose.answer_blocks(entry, STATE.entries) if b["type"] == "answer")
+    blocks.append({**answer_block, "body": [], "explain_simple": None})
+    guidance = STATE.entries.get("tasawur-waswasa")
+    if guidance and entry_id != "tasawur-waswasa":
+        blocks.append({"type": "guidance", "entry_id": guidance["id"], "summary": compose.segments(guidance["summary"])})
+    blocks.append(message_block("repeat_referral"))
+    return ChatResponse(kind="answer", entry_id=entry_id, layer="summary", degraded=degraded, version=s.version,
+                        blocks=blocks)
+
+
+def answered_before(entry_id: str, req: ChatRequest) -> bool:
+    return any(item.entry_id == entry_id and item.kind == "answer" for item in req.context.recent)
+
+
 def answer(entry_id: str, s: Settings, degraded: bool, layer: str = "summary",
            framing: list[dict] | None = None) -> ChatResponse:
     entry = STATE.entries[entry_id]
@@ -121,14 +150,17 @@ def answer(entry_id: str, s: Settings, degraded: bool, layer: str = "summary",
                         blocks=blocks)
 
 
-def lexical_decision(message: str, s: Settings) -> ChatResponse:
+def lexical_decision(message: str, s: Settings, req: ChatRequest | None = None) -> ChatResponse:
     """Degraded mode (build-plan §2 decision table, last row)."""
     hits = STATE.index.search(message) if STATE.index else []
     top_score = hits[0][1] if hits else 0.0
     second = hits[1][1] if len(hits) > 1 else 0.0
     if hits and top_score >= LEX_T_HI and top_score - second >= LEX_MARGIN:
+        if req is not None and req.context.repeat_count >= 2 and answered_before(hits[0][0], req):
+            return repeat_response(hits[0][0], s, degraded=True)
         return answer(hits[0][0], s, degraded=True)
-    if set(arabic.words(message)) & {arabic.normalize(w) for w in RULING_WORDS}:
+    stems = set().union(*(guards._stems(w) for w in arabic.words(message))) if message else set()
+    if stems & {arabic.normalize(w) for w in RULING_WORDS}:
         return ChatResponse(kind="refer", version=s.version, degraded=True, blocks=[message_block("referral_fiqh")])
     return abstain(s, degraded=True)
 
@@ -173,6 +205,9 @@ def model_decision(decision, message: str, prev: dict | None, req: ChatRequest, 
     if decision.route == "followup" and prev is not None:
         return _followup(prev, req, s)
     entry = STATE.entries.get(decision.entry_id)
+    resolved = prev if decision.route == "followup" and prev is not None else entry
+    if req.context.repeat_count >= 2 and resolved is not None and answered_before(resolved["id"], req):
+        return repeat_response(resolved["id"], s, degraded=False)
     if decision.evidence_request != "none":
         has = bool(entry and (entry.get("hadiths") if decision.evidence_request == "hadith" else entry.get("verses")))
         if not has:
@@ -207,14 +242,21 @@ async def handle(req: ChatRequest, s: Settings) -> tuple[int, ChatResponse]:
         return 200, reply
     if arabic.arabic_ratio(message) < NON_ARABIC_BELOW:
         return 200, non_arabic_response(s)
+    notice = misquote_block(message)
+    response = await _respond(message, req, s)
+    if notice and response.kind not in ("distress", "non_arabic", "smalltalk"):
+        response.blocks = notice + response.blocks
+    return 200, response
+
+
+async def _respond(message: str, req: ChatRequest, s: Settings) -> ChatResponse:
     if not STATE.entries:
         # No approved entries yet: the router is skipped and the fixed abstention is returned.
-        return 200, abstain(s)
-    decision = None
+        return abstain(s)
     if s.llm_enabled and req.mode != "offline":
         prev = STATE.entries.get(req.context.prev_entry_id or "")
         decision = await router.decide(message, prev, list(STATE.entries.values()), s)
         if decision is not None:
-            return 200, model_decision(decision, message, prev, req, s)
+            return model_decision(decision, message, prev, req, s)
     # Degraded mode: model disabled, offline mode requested, or the call failed.
-    return 200, lexical_decision(message, s)
+    return lexical_decision(message, s, req)

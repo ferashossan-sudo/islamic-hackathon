@@ -14,6 +14,33 @@
   let config = { labels: {}, texts: {} };
   let turn = 0;
   let busy = false;
+  let sentMessages = [];  // normalized, for repeat_count only; never sent to the server
+  const REPEAT_SIMILARITY = 0.8;
+
+  // Same rule as app/arabic.py: strip marks and tatweel, unify letter forms, keep words.
+  function normalize(text) {
+    return String(text)
+      .normalize("NFC")
+      .replace(/[\u0610-\u061a\u064b-\u065f\u0670\u06d6-\u06ed\u08d3-\u08ff\u0640\u00ad\u200b-\u200f\u2060-\u2064\ufeff]/g, "")
+      .replace(/[أإآٱٲٳ]/g, "ا").replace(/[ىیئ]/g, "ي").replace(/ة/g, "ه").replace(/ؤ/g, "و").replace(/ء/g, "").replace(/ک/g, "ك")
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s_]/gu, " ")
+      .split(/\s+/).filter(Boolean).join(" ");
+  }
+
+  function trigramSimilarity(a, b) {
+    const grams = (t) => {
+      const set = new Set();
+      if (t.length < 3) { set.add(t); return set; }
+      for (let i = 0; i <= t.length - 3; i++) set.add(t.slice(i, i + 3));
+      return set;
+    };
+    const ga = grams(a), gb = grams(b);
+    let shared = 0;
+    ga.forEach((g) => { if (gb.has(g)) shared += 1; });
+    const union = ga.size + gb.size - shared;
+    return union ? shared / union : 0;
+  }
 
   fetch("/api/config")
     .then((r) => r.json())
@@ -151,6 +178,10 @@
         segmentsInto(simple, b.explain_simple);
         box.append(simple);
       }
+      if (!b.body || !b.body.length) {
+        card.append(box);
+        return;
+      }
       const full = el("details", "full-answer");
       if (b.open === "body") full.open = true;
       full.append(el("summary", null, label("read_full", "اقرأ الإجابة كاملة")));
@@ -202,6 +233,11 @@
         list.append(li);
       });
       box.append(list);
+    },
+    guidance(card, b) {
+      const box = el("div", "block block-notice");
+      segmentsInto(box, b.summary);
+      card.append(box);
     },
     review(card, b) {
       card.append(el("p", "hint review-line", b.text));
@@ -265,6 +301,8 @@
     log.append(pending);
     scrollToEnd(pending);
     turn += 1;
+    const normalized = normalize(text);
+    context.repeat_count = sentMessages.filter((m) => trigramSimilarity(m, normalized) >= REPEAT_SIMILARITY).length;
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -274,6 +312,7 @@
       const data = await response.json();
       pending.remove();
       if (response.ok) {
+        sentMessages.push(normalized);
         addUserMessage(text);
         input.value = "";
         updateCounter();
@@ -330,6 +369,7 @@
     context.prev_entry_id = null;
     context.recent = [];
     context.repeat_count = 0;
+    sentMessages = [];
     turn = 0;
     input.focus();
   });

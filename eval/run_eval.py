@@ -25,7 +25,7 @@ from app.schemas import ChatContext, ChatRequest, RecentItem  # noqa: E402
 SETS = {"critical": ROOT / "eval" / "cases" / "critical.jsonl", "dev": ROOT / "eval" / "cases" / "dev.jsonl"}
 IJAZ = ("الإعجاز العلمي", "سبق القرآن", "أثبت العلم")
 CONSENSUS = ("أجمع العلماء", "اتفق العلماء", "بإجماع")
-PENDING = {"misquote_notice", "repeat_guidance_on_turn"}  # features scheduled for Monday (WP7)
+PENDING: set[str] = set()
 
 
 def all_text(response) -> str:
@@ -82,6 +82,11 @@ def check(name: str, arg: str, response, case: dict, calls: int, responses: list
         return bool(sharia and sharia["tafsir"] and all(t["label"] for t in sharia["tafsir"]))
     if name == "layer_in":
         return response.layer in arg.split(",")
+    if name == "misquote_notice":
+        return any(b.get("key") == "misquote_notice" and b.get("ref") == arg for b in blocks)
+    if name == "repeat_guidance_on_turn":
+        n = int(arg)
+        return len(responses) >= n and any(b.get("key") == "notice_repeat" for b in responses[n - 1].blocks)
     raise ValueError(f"unknown check {name}")
 
 
@@ -99,10 +104,14 @@ async def run_case(case: dict, settings, sleep: float) -> dict:
 
     router.decide = counted
     responses = []
+    sent = []
     try:
         for turn, message in enumerate(case["turns"], 1):
+            repeats = sum(1 for m in sent if arabic.trigram_similarity(m, message) >= 0.8)
+            context = context.model_copy(update={"repeat_count": repeats})
             _, response = await pipeline.handle(ChatRequest(message=message, turn=turn, context=context), settings)
             responses.append(response)
+            sent.append(message)
             if response.entry_id:
                 context = ChatContext(prev_entry_id=response.entry_id,
                                       recent=(context.recent + [RecentItem(entry_id=response.entry_id, kind=response.kind,
