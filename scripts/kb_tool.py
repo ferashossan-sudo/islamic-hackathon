@@ -163,14 +163,21 @@ h1{font-size:1.3rem}h2{font-size:1.15rem;margin:0 0 4px;direction:ltr;text-align
 
 
 def cmd_digest(args) -> int:
-    entries = kb.read_all()
-    if not args.all:
+    if args.source:
+        entries = []
+        for path in sorted(Path(args.source).glob("*.json")) if Path(args.source).is_dir() else [Path(args.source)]:
+            for e in json.loads(path.read_text(encoding="utf-8")):
+                kb.normalize_refs(e)
+                entries.append(e)
+    else:
+        entries = kb.read_all()
+    if not args.all and not args.source:
         entries = [e for e in entries if e.get("status") in ("draft", "needs_edit")]
     entries.sort(key=lambda e: (not e.get("critical", False), e["id"]))
     body = "\n".join(_entry_html(e) for e in entries) or "<p>لا مسودات.</p>"
     html = (f"<!doctype html><html lang='ar' dir='rtl'><head><meta charset='utf-8'>"
-            f"<meta name='viewport' content='width=device-width, initial-scale=1'><title>مراجعة الإجابات</title>"
-            f"<style>{DIGEST_CSS}</style></head><body><h1>مراجعة الإجابات ({len(entries)})</h1>"
+            f"<meta name='viewport' content='width=device-width, initial-scale=1'><title>{escape(args.title)}</title>"
+            f"<style>{DIGEST_CSS}</style></head><body><h1>{escape(args.title)} ({len(entries)})</h1>"
             f"<p class='muted'>الآيات معروضة من ملف المصحف بمرجعها. المطلوب لكل إجابة: معتمد، أو يحتاج تعديل مع الملاحظة، أو مرفوض.</p>"
             f"{body}</body></html>")
     out = Path(args.output)
@@ -198,6 +205,8 @@ def main() -> int:
     p = sub.add_parser("digest")
     p.add_argument("-o", "--output", default=str(ROOT / "private" / "digest.html"))
     p.add_argument("--all", action="store_true")
+    p.add_argument("--source", help="a drafts JSON file or a folder of them, instead of content/kb.json")
+    p.add_argument("--title", default="مراجعة الإجابات")
     args = parser.parse_args()
     return {"check": cmd_check, "add": cmd_add, "approve": cmd_approve,
             "status": cmd_status, "digest": cmd_digest}[args.cmd](args)
