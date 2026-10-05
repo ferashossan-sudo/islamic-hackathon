@@ -369,6 +369,44 @@
     },
   };
 
+  // The sources, folded in one line: «المصادر (n)».
+  function compactSources(card, b) {
+    const items = b.items || [];
+    if (!items.length) return;
+    const box = el("details", "block sources-compact");
+    box.append(el("summary", null, label("sources", "المصادر") + " (" + items.length + ")"));
+    const list = el("ul");
+    items.forEach((s) => {
+      const li = el("li");
+      li.append(externalLink([s.name, s.locator].filter(Boolean).join(" "), s.url));
+      list.append(li);
+    });
+    box.append(list);
+    card.append(box);
+  }
+
+  // The common objections of the answer's reviewed «بالعقل والعلم» layer, as one-tap follow-up questions.
+  function followUps(card, reasoning) {
+    // Short ones only, so they read as questions to tap, not paragraphs.
+    const items = ((reasoning && reasoning.objections) || []).filter((o) => o.objection.length <= 90).slice(0, 3);
+    if (!items.length) return;
+    const box = el("div", "block block-related follow-ups");
+    box.append(el("p", "hint", label("follow_ups", "قد تسأل أيضاً:")));
+    items.forEach((o) => {
+      const chip = el("button", "chip", o.objection);
+      chip.type = "button";
+      chip.addEventListener("click", () => {
+        input.value = o.objection;
+        submit();
+      });
+      box.append(chip);
+    });
+    card.append(box);
+  }
+
+  // Blocks that go under «الأدلة والتفاصيل» when the approved card is shown without a conversational reply.
+  const DETAIL_BLOCKS = new Set(["sharia", "science", "review", "related"]);
+
   function renderResponse(data) {
     const card = el("article", "msg bot kind-" + (data.kind || "abstain"));
     if (data.degraded) {
@@ -377,19 +415,34 @@
       degradedShown = true;
     }
     const blocks = data.blocks || [];
-    let target = card;
-    blocks.forEach((block, i) => {
+    if (!blocks.some((b) => b.type === "answer")) {
+      // Referrals, abstentions, support: shown as they come.
+      blocks.forEach((block) => renderers[block.type] && renderers[block.type](card, block));
+      log.append(card);
+      scrollToEnd(card);
+      return;
+    }
+    // One message: the reply (or the approved summary), then the sources and follow-up questions in one line
+    // each, and everything else folded one tap away.
+    const chat = blocks.find((b) => b.type === "chat");
+    const reasoning = blocks.find((b) => b.type === "reasoning");
+    const sources = blocks.find((b) => b.type === "sources");
+    const folded = el("details", "card-details");
+    folded.append(el("summary", null, chat ? (chat.toggle || "الإجابة المراجعة ومصادرها")
+      : label("evidence_details", "الأدلة والتفاصيل")));
+    let foldedCount = 0;
+    blocks.forEach((block) => {
       const render = renderers[block.type];
-      if (!render) return;
-      render(target, block);
-      if (i === 0 && block.type === "chat") {
-        // The approved answer and its sources stay one tap away under the conversational reply.
-        const details = el("details", "card-details");
-        details.append(el("summary", null, block.toggle || "الإجابة المراجعة ومصادرها"));
-        card.append(details);
-        target = details;
-      }
+      if (!render || block.type === "reasoning" || block.type === "sources") return;
+      // With a reply, the whole approved card is folded; notices and messages stay above it.
+      const inFold = chat ? !["chat", "notice", "message", "framing"].includes(block.type)
+        : DETAIL_BLOCKS.has(block.type);
+      render(inFold ? folded : card, block);
+      if (inFold) foldedCount += 1;
     });
+    if (sources) compactSources(card, sources);
+    followUps(card, reasoning);
+    if (foldedCount) card.append(folded);
     log.append(card);
     scrollToEnd(card);
   }

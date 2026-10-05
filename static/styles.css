@@ -431,3 +431,17 @@ main {
   text-align: center;
   font-weight: 600;
 }
+
+/* One message: the sources in one folded line, then follow-up questions. */
+.sources-compact {
+  margin-block-start: 8px;
+  font-size: 0.9rem;
+}
+.sources-compact > summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.sources-compact ul { margin: 6px 0 0; padding-inline-start: 18px; }
+.sources-compact li { margin-block-end: 4px; }
+.follow-ups { margin-block-start: 8px; }
+.follow-ups .hint { margin: 0 0 4px; }

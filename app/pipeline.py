@@ -207,7 +207,10 @@ def lexical_decision(message: str, s: Settings, req: ChatRequest | None = None) 
     stems = set().union(*(guards._stems(w) for w in arabic.words(message))) if message else set()
     if stems & {arabic.normalize(w) for w in RULING_WORDS}:
         return ChatResponse(kind="refer", version=s.version, degraded=True, blocks=[message_block("referral_fiqh")])
-    return abstain(s, degraded=True)
+    response = abstain(s, degraded=True)
+    # Not sure enough to answer: offer the closest approved questions («ربما تقصد») so one tap gets there.
+    response.blocks = response.blocks + _maybe_block(message)
+    return response
 
 
 REFERRALS = {"personal_fatwa": "referral_personal_fatwa", "fiqh": "referral_fiqh",
@@ -373,7 +376,7 @@ def _quoted(history: list[dict], entry: dict) -> frozenset:
 
 # Soft style checks: one rewrite, never a reason to drop a reply that passed G13 and G14.
 FLATTERY = ("سؤالك مهم", "سؤال مهم جدا", "يعكس", "ينم عن", "يدل على حرصك", "أقدر حرصك", "تفكيرك النقدي",
-            "دليل على تفكيرك", "حرصك على")
+            "دليل على تفكيرك", "حرصك على", "سؤالك وجيه", "سؤال وجيه", "صح سؤالك")
 STYLE_FEEDBACK = {
     "flattery": "Do not praise the person or describe their thinking or motives; open with one plain sentence "
                 "about the question itself.",
