@@ -445,3 +445,24 @@ main {
 .sources-compact li { margin-block-end: 4px; }
 .follow-ups { margin-block-start: 8px; }
 .follow-ups .hint { margin: 0 0 4px; }
+
+.top-actions { display: flex; gap: 14px; flex-wrap: wrap; }
+.print-only { display: none; }
+
+/* «حفظ المحادثة PDF»: the conversation, its sources and the approved cards, without the page's controls. */
+@media print {
+  :root { --bg: #fff; --surface: #fff; --text: #000; --muted: #333; --accent: #000; --border: #999; }
+  body { background: #fff; color: #000; font-size: 12pt; }
+  .top-links, .top-actions, .disclosure-short, .composer, .info, .foot, .preview-banner,
+  .follow-ups, .block-related, .featured, .welcome { display: none !important; }
+  .print-only { display: block; }
+  .print-note { font-size: 10pt; color: #333; margin: 0 0 12px; }
+  .top { position: static; border: 0; }
+  .msg { break-inside: avoid-page; border: 1px solid #bbb; box-shadow: none; background: #fff; }
+  .msg.user { background: #f2f2f2; }
+  details > summary { list-style: none; font-weight: 700; }
+  details > summary::-webkit-details-marker { display: none; }
+  a { color: #000; text-decoration: underline; }
+  a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 9pt; color: #333; word-break: break-all; }
+  a[href^="tel:"]::after { content: ""; }
+}

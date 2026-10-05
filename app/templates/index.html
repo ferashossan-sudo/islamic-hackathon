@@ -13,8 +13,12 @@
 <header class="top">
   <div class="top-row">
     <h1 class="brand">ليطمئنّ قلبي</h1>
-    <button type="button" id="clear" class="link-button">{{l:clear_chat}}</button>
+    <span class="top-actions">
+      <button type="button" id="save-pdf" class="link-button">{{l:save_pdf}}</button>
+      <button type="button" id="clear" class="link-button">{{l:clear_chat}}</button>
+    </span>
   </div>
+  <p class="print-only print-note">{{l:print_note}} <span id="print-date"></span></p>
   <p class="disclosure-short">{{t:disclosure_header}}</p>
   <nav class="top-links">
     <a href="#privacy" data-open="privacy">{{l:privacy_link}}</a>

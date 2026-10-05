@@ -369,9 +369,18 @@
     },
   };
 
-  // The sources, folded in one line: «المصادر (n)».
-  function compactSources(card, b) {
-    const items = b.items || [];
+  // The sources, folded in one line: «المصادر (n)». They include the scientific sources the reply may name
+  // (each science item's source), once each.
+  function compactSources(card, b, science) {
+    const items = [];
+    const seen = new Set();
+    const add = (s) => {
+      if (!s.url || seen.has(s.url)) return;
+      seen.add(s.url);
+      items.push(s);
+    };
+    ((b && b.items) || []).forEach(add);
+    ((science && science.items) || []).forEach((s) => add({ name: s.source, locator: "", url: s.url }));
     if (!items.length) return;
     const box = el("details", "block sources-compact");
     box.append(el("summary", null, label("sources", "المصادر") + " (" + items.length + ")"));
@@ -427,21 +436,25 @@
     const chat = blocks.find((b) => b.type === "chat");
     const reasoning = blocks.find((b) => b.type === "reasoning");
     const sources = blocks.find((b) => b.type === "sources");
+    const science = blocks.find((b) => b.type === "science");
+    // «اقنعني بالعقل» without a reply: the server puts the reviewed «بالعقل والعلم» layer first, shown as the answer.
+    const lead = !chat && blocks[0].type === "reasoning" ? blocks[0] : null;
     const folded = el("details", "card-details");
     folded.append(el("summary", null, chat ? (chat.toggle || "الإجابة المراجعة ومصادرها")
-      : label("evidence_details", "الأدلة والتفاصيل")));
+      : lead ? label("full_answer", "الإجابة المراجعة كاملة") : label("evidence_details", "الأدلة والتفاصيل")));
     let foldedCount = 0;
+    if (lead) renderers.reasoning(card, lead);
     blocks.forEach((block) => {
       const render = renderers[block.type];
       if (!render || block.type === "reasoning" || block.type === "sources") return;
-      // With a reply, the whole approved card is folded; notices and messages stay above it.
-      const inFold = chat ? !["chat", "notice", "message", "framing"].includes(block.type)
+      // With a reply (or the reasoning as the answer), the whole approved card is folded; notices stay above it.
+      const inFold = chat || lead ? !["chat", "notice", "message", "framing"].includes(block.type)
         : DETAIL_BLOCKS.has(block.type);
       render(inFold ? folded : card, block);
       if (inFold) foldedCount += 1;
     });
-    if (sources) compactSources(card, sources);
-    followUps(card, reasoning);
+    if (sources || science) compactSources(card, sources, science);
+    if (!lead) followUps(card, reasoning);  // with the layer as the answer, its objections are already shown
     if (foldedCount) card.append(folded);
     log.append(card);
     scrollToEnd(card);
@@ -543,6 +556,22 @@
     updateCounter();
     autoGrow();
   });
+
+  // «حفظ المحادثة PDF»: the browser's print dialog, where «Save as PDF» keeps the conversation on the person's own
+  // device. Nothing is sent anywhere. Every folded part (sources, the approved card) is opened for the copy, and the
+  // print stylesheet writes each link's address next to it, so the sources can be checked later from the PDF.
+  let reopened = [];
+  window.addEventListener("beforeprint", () => {
+    reopened = Array.from(log.querySelectorAll("details:not([open])"));
+    reopened.forEach((d) => { d.open = true; });
+    const date = document.getElementById("print-date");
+    if (date) date.textContent = new Date().toLocaleDateString("ar-SA-u-ca-gregory", { dateStyle: "long" });
+  });
+  window.addEventListener("afterprint", () => {
+    reopened.forEach((d) => { d.open = false; });
+    reopened = [];
+  });
+  document.getElementById("save-pdf").addEventListener("click", () => window.print());
 
   clearButton.addEventListener("click", () => {
     if (!window.confirm(label("clear_chat_confirm", "تُمسح المحادثة من هذه الصفحة."))) return;

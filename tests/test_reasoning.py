@@ -443,3 +443,34 @@ def test_leading_theory_never_settles_a_point(reply, problem):
     e = with_reasoning()
     got = guards.reply_problem(reply, e, [])
     assert (got == "overclaim") == (problem == "overclaim"), got
+
+
+def test_reason_only_request_without_a_reply_gets_the_reasoning_layer_first(fakes_reasoning_drop):
+    """«اقنعني بالعقل» and the dialogue fails: the reviewed layer (no verse or hadith) leads the answer."""
+    r = fakes_reasoning_drop("خلني من الايات، اقنعني بالعقل بس")
+    assert r.blocks[0]["type"] == "reasoning"
+    assert sum(b["type"] == "reasoning" for b in r.blocks) == 1
+
+
+def test_an_ordinary_question_without_a_reply_keeps_the_card_order(fakes_reasoning_drop):
+    r = fakes_reasoning_drop("ما الدليل على أن للكون خالقاً؟")
+    assert r.blocks[0]["type"] != "reasoning"
+
+
+@pytest.fixture
+def fakes_reasoning_drop(monkeypatch):
+    """The router picks the entry; every dialogue call fails, so the approved card stands alone."""
+    before = (pipeline.STATE.entries, pipeline.STATE.index, pipeline.STATE.source_names)
+    pipeline.load([with_reasoning()])
+
+    async def fake_router(s, model, system, payload, timeout):
+        return json.dumps({"route": "knowledge", "entry_id": "kawn-reason-x", "confidence": "high",
+                           "oos_reason": "none", "evidence_request": "none", "framing": ""}), {}
+
+    async def failing_compose(s, model, payload, timeout):
+        raise ValueError("no reply")
+
+    monkeypatch.setitem(router.PROVIDERS, "gemini", fake_router)
+    monkeypatch.setitem(converse.PROVIDERS, "gemini", failing_compose)
+    yield lambda message: asyncio.run(pipeline.handle(ChatRequest(message=message), SETTINGS))[1]
+    pipeline.STATE.entries, pipeline.STATE.index, pipeline.STATE.source_names = before

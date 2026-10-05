@@ -444,6 +444,11 @@ async def attach_chat(response: ChatResponse, message: str, req: ChatRequest, s:
         feedback = [f"A statement the material does not support: {claim}" for claim in unsupported]
     log_event(event="converse", ok=ok)
     if not ok:
+        reasoning = [b for b in response.blocks if b["type"] == "reasoning"]
+        if reasoning and guards.REASON_ONLY.search(message):
+            # «اقنعني بالعقل»: the reviewed «بالعقل والعلم» layer (no verse or hadith in it) answers first.
+            response.blocks = reasoning + [b for b in response.blocks if b["type"] != "reasoning"]
+            return response
         if response.layer == "summary" and answered_before(entry["id"], req):
             return _followup(entry, req, s)  # a push-back answered with the same card again would feel like a wall
         return response
