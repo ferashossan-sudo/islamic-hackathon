@@ -134,8 +134,8 @@ def validate_entry(entry: dict) -> tuple[list[str], list[str]]:
             errors.append(f"الحديث {i}: رابط خارج القائمة المعتمدة: {item['url']}")
         if not any(book in item["source"] for book in ("البخاري", "مسلم")):
             if not item.get("verify_url"):
-                warnings.append(f"الحديث {i}: من غير الصحيحين بلا رابط تحقق من الموسوعة الحديثية أو الشاملة "
-                                f"(شرط الحزمة العلمية، ص3)")
+                errors.append(f"الحديث {i}: من غير الصحيحين بلا رابط تحقق من الموسوعة الحديثية أو الشاملة "
+                              f"(شرط الحزمة العلمية، ص3)")
             elif not _domain_ok(item["verify_url"], HADITH_VERIFY_DOMAINS):
                 errors.append(f"الحديث {i}: رابط التحقق ليس من الدرر أو الشاملة: {item['verify_url']}")
         weak = any(word in item["grade"] for word in WEAK_GRADES)

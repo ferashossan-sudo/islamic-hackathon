@@ -207,8 +207,8 @@ def test_a_hadith_outside_the_two_sahihs_needs_a_check_link_from_the_package_sou
          "url": "https://hadeethenc.com/ar/browse/hadith/1", "via": "hadeethenc", "purpose": "evidence"}
     e = {**entry("kawn-hadith-x", "سؤال؟", ["صيغة أولى", "صيغة ثانية", "صيغة ثالثة", "صيغة رابعة"]),
          "status": "draft", "hadiths": [h]}
-    assert any("الصحيحين" in w for w in kb.validate_entry(e)[1])
+    assert any("الصحيحين" in err for err in kb.validate_entry(e)[0])
     ok = {**e, "hadiths": [{**h, "verify_url": "https://dorar.net/h/abc"}]}
-    assert not any("الصحيحين" in w for w in kb.validate_entry(ok)[1]) and not kb.validate_entry(ok)[0]
+    assert not kb.validate_entry(ok)[0]
     bad = {**e, "hadiths": [{**h, "verify_url": "https://example.com/h"}]}
     assert any("رابط التحقق" in err for err in kb.validate_entry(bad)[0])

@@ -24,10 +24,12 @@
         "tauhid",
         "towhid"
       ],
-      "term_en": "Monotheism",
+      "term_en": "Tawhid (Oneness of God)",
       "term_ar": "توحيد",
       "definition_en": "Singling Allah out in everything exclusive to Him: His Lordship, His divinity (worship), and His names and attributes; and dissociating oneself from polytheism and its people.",
-      "url": "https://terminologyenc.com/en/browse/term/10482"
+      "url": "https://terminologyenc.com/en/browse/term/10482",
+      "approved_by": null,
+      "review_note": "Heading set from the hackathon reference package (p. 7, term dictionary samples) on 5 October 2026; the encyclopedia's own English title is 'Monotheism'. Definition and link unchanged (verbatim from the encyclopedia)."
     },
     {
       "key": "sharia",
@@ -38,10 +40,12 @@
         "shari'a",
         "shariat"
       ],
-      "term_en": "Islamic law",
+      "term_en": "Sharia (Islamic law and guidance)",
       "term_ar": "الشريعة",
       "definition_en": "The clear course in the religion that includes the beliefs, rulings, and ethics.",
-      "url": "https://terminologyenc.com/en/browse/term/47755"
+      "url": "https://terminologyenc.com/en/browse/term/47755",
+      "approved_by": null,
+      "review_note": "Heading set from the hackathon reference package (p. 7, term dictionary samples) on 5 October 2026; the encyclopedia's own English title is 'Islamic law'. Definition and link unchanged (verbatim from the encyclopedia)."
     },
     {
       "key": "fatwa",
@@ -51,10 +55,12 @@
         "fatwas",
         "fatawa"
       ],
-      "term_en": "Religious opinion",
+      "term_en": "Fatwa (religious ruling by a qualified scholar)",
       "term_ar": "فَتْوَى",
       "definition_en": "Giving a non-binding religious ruling.",
-      "url": "https://terminologyenc.com/en/browse/term/114"
+      "url": "https://terminologyenc.com/en/browse/term/114",
+      "approved_by": null,
+      "review_note": "Heading set on 5 October 2026: the package (p. 7, term dictionary samples) gives only 'Fatwa'; the bracketed gloss is our English rendering of the package's usage note «جواب شرعي يصدره مؤهل في واقعة أو سؤال», not package wording. The encyclopedia's own English title is 'Religious opinion'. Definition and link unchanged (verbatim from the encyclopedia)."
     },
     {
       "key": "ummah",
@@ -101,10 +107,12 @@
         "da'wa",
         "dawa"
       ],
-      "term_en": "Calling to Allah",
+      "term_en": "Da‘wah (Invitation to Islam)",
       "term_ar": "الدَّعوة إلى الله",
       "definition_en": "Guiding to belief in Allah Almighty and what was brought by His messengers, and to believing in what they said and obeying of their commands.",
-      "url": "https://terminologyenc.com/en/browse/term/72440"
+      "url": "https://terminologyenc.com/en/browse/term/72440",
+      "approved_by": null,
+      "review_note": "Heading set from the hackathon reference package (p. 7, term dictionary samples) on 5 October 2026; the encyclopedia's own English title is 'Calling to Allah'. Definition and link unchanged (verbatim from the encyclopedia)."
     },
     {
       "key": "sunnah",
