@@ -212,3 +212,12 @@ def test_a_hadith_outside_the_two_sahihs_needs_a_check_link_from_the_package_sou
     assert not kb.validate_entry(ok)[0]
     bad = {**e, "hadiths": [{**h, "verify_url": "https://example.com/h"}]}
     assert any("رابط التحقق" in err for err in kb.validate_entry(bad)[0])
+
+
+def test_question_text_fills_verse_placeholders_from_the_mushaf():
+    from app import compose
+    shown = compose.question_text("هل تدل آية الذاريات {{q:51:47}} على أن الكون يتمدد؟")
+    assert "{{" not in shown
+    assert "﴿" + quran.lookup("51:47")[0].plain + "﴾" in shown
+    assert quran.find_misquote(shown) is None  # tapping the chip must not trigger the misquote notice
+    assert compose.question_text("سؤال بلا آية") == "سؤال بلا آية"

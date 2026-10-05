@@ -8,7 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app import kb, pipeline, router, texts
+from app import compose, kb, pipeline, router, texts
 from app.config import load_settings
 from app.pages import render_index
 from app.schemas import ChatRequest, ChatResponse
@@ -101,7 +101,8 @@ async def config() -> dict:
         "suggest_form_url": settings.suggest_form_url,
         "labels": texts.pairs("ui_labels"),
         "texts": {key: texts.text(key) for key in ("network_error", "support_line", "degraded_badge", "degraded_mode")},
-        "featured": [{"id": e["id"], "question": e["question"]} for e in APPROVED if e.get("featured")][:6],
+        "featured": [{"id": e["id"], "question": compose.question_text(e["question"])}
+                     for e in APPROVED if e.get("featured")][:6],
         "preview_drafts": PREVIEW_DRAFTS,
     }
 

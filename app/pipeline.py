@@ -231,7 +231,7 @@ MAYBE_MIN_SCORE = 0.2
 def _maybe_block(message: str, exclude: str | None = None) -> list[dict]:
     """W2 «ربما تقصد»: up to three approved questions that are lexically close."""
     hits = STATE.index.search(message, k=4) if STATE.index else []
-    items = [{"id": eid, "question": STATE.entries[eid]["question"]}
+    items = [{"id": eid, "question": compose.question_text(STATE.entries[eid]["question"])}
              for eid, score in hits if score >= MAYBE_MIN_SCORE and eid != exclude][:3]
     if not items:
         return []
@@ -278,7 +278,7 @@ def model_decision(decision, message: str, prev: dict | None, req: ChatRequest, 
                 blocks.append(message_block("no_matching_evidence_hadith"))
             if entry:
                 blocks.append({"type": "related", "title": texts.pairs("ui_labels")["may_help"],
-                               "items": [{"id": entry["id"], "question": entry["question"]}]})
+                               "items": [{"id": entry["id"], "question": compose.question_text(entry["question"])}]})
             return ChatResponse(kind="abstain", version=s.version, blocks=blocks)
     if entry is not None:
         top3 = [eid for eid, _ in (STATE.index.search(message, k=3) if STATE.index else [])]

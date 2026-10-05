@@ -50,6 +50,12 @@ def chat_segments(text: str, entry: dict, quoted: frozenset = frozenset()) -> li
     return out
 
 
+def question_text(text: str) -> str:
+    """A question as shown on a chip and sent back when tapped: verse placeholders become the mushaf text."""
+    return kb.VERSE_PLACEHOLDER.sub(
+        lambda m: "﴿" + " ".join(v.plain for v in quran.lookup(m.group(1))) + "﴾", text or "")
+
+
 def verse_item(ref: str) -> dict:
     return {"type": "verse", "ref": ref, "label": quran.label(ref),
             "text": " ".join(v.text for v in quran.lookup(ref))}
@@ -98,7 +104,8 @@ def answer_blocks(entry: dict, approved: dict[str, dict], layer: str = "summary"
                                                  "url": source["url"]}, *more]})
     review_key = "reviewer_attribution_ai_drafted" if entry.get("drafted_with_ai") else "reviewer_attribution"
     blocks.append({"type": "review", "text": _fill(texts.text(review_key), التاريخ=entry["review"]["reviewed_at"])})
-    related = [{"id": rid, "question": approved[rid]["question"]} for rid in entry.get("related", []) if rid in approved]
+    related = [{"id": rid, "question": question_text(approved[rid]["question"])}
+               for rid in entry.get("related", []) if rid in approved]
     if related:
         blocks.append({"type": "related", "items": related})
     final_check(blocks, entry)
