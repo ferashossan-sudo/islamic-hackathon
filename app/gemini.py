@@ -13,8 +13,10 @@ GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:ge
 SAFETY = [{"category": c, "threshold": "BLOCK_ONLY_HIGH"} for c in (
     "HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH",
     "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT")]
-# How long a model is skipped after each kind of failure, in seconds.
-SKIP_FOR = {429: 15 * 60, 404: 24 * 3600, 500: 60, 502: 60, 503: 60, 504: 60}
+# How long a model is skipped after each kind of failure, in seconds. A 429 for the per-minute limit is skipped
+# only as long as Google asks (retryDelay); a 429 for the daily quota is skipped for an hour.
+SKIP_FOR = {429: 60, 404: 24 * 3600, 500: 60, 502: 60, 503: 60, 504: 60}
+DAILY_QUOTA_SKIP = 3600
 SKIPPED: dict[str, float] = {}
 _FENCE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$")
 
@@ -39,20 +41,39 @@ def body(model: str, system: str, payload: str, schema: dict | None, temperature
     return out
 
 
+def skip_seconds(r: httpx.Response) -> float:
+    """How long to leave a failing model alone: the daily quota for an hour, a per-minute limit for its delay."""
+    if r.status_code != 429:
+        return SKIP_FOR[r.status_code]
+    try:
+        details = r.json().get("error", {}).get("details", [])
+    except ValueError:
+        return SKIP_FOR[429]
+    quotas = [v.get("quotaId", "") for d in details for v in d.get("violations", [])]
+    if any("PerDay" in q for q in quotas):
+        return DAILY_QUOTA_SKIP
+    delay = next((d.get("retryDelay", "") for d in details if d.get("retryDelay")), "")
+    try:
+        return min(float(delay.rstrip("s")), SKIP_FOR[429]) if delay else SKIP_FOR[429]
+    except ValueError:
+        return SKIP_FOR[429]
+
+
 async def generate(key: str, models: str, system: str, payload: str, schema: dict | None, timeout: float,
                    temperature: float = 0.0, max_tokens: int = 1200) -> tuple[str, dict]:
     """JSON text from the first model in the chain that answers. Raises if none does."""
     last: Exception = RuntimeError("no model available")
     names = chain(models)
     now = time.monotonic()
-    ready = [m for m in names if SKIPPED.get(m, 0) <= now] or names[-1:]
+    # If every model is resting, try the one whose rest ends first (a per-minute limit, not the daily quota).
+    ready = [m for m in names if SKIPPED.get(m, 0) <= now] or [min(names, key=lambda m: SKIPPED.get(m, 0))]
     for model in ready:
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
                 r = await client.post(GEMINI_URL.format(model=model), headers={"x-goog-api-key": key},
                                       json=body(model, system, payload, schema, temperature, max_tokens))
             if r.status_code in SKIP_FOR:
-                SKIPPED[model] = time.monotonic() + SKIP_FOR[r.status_code]
+                SKIPPED[model] = time.monotonic() + skip_seconds(r)
             r.raise_for_status()
         except httpx.HTTPError as exc:
             last = exc

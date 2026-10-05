@@ -70,3 +70,14 @@ def test_a_single_model_from_the_dashboard_still_gets_the_free_tier_fallbacks(mo
     monkeypatch.setenv("ROUTER_PROVIDER", "anthropic")
     monkeypatch.setenv("ROUTER_MODEL", "claude-opus-5-5")
     assert config.load_settings().router_model == "claude-opus-5-5"
+
+
+def test_a_per_minute_limit_skips_briefly_and_the_daily_quota_for_an_hour():
+    minute = httpx.Response(429, json={"error": {"details": [
+        {"violations": [{"quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"}]},
+        {"retryDelay": "7s"}]}})
+    daily = httpx.Response(429, json={"error": {"details": [
+        {"violations": [{"quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier"}]}, {"retryDelay": "30000s"}]}})
+    assert gemini.skip_seconds(minute) == 7
+    assert gemini.skip_seconds(daily) == gemini.DAILY_QUOTA_SKIP
+    assert gemini.skip_seconds(httpx.Response(503)) == 60
