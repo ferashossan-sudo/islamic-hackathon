@@ -82,7 +82,8 @@ def answer_blocks(entry: dict, approved: dict[str, dict], layer: str = "summary"
     hadiths = [{"text": h["text"], "url": h["url"],
                 "line": _fill(texts.text("hadith_attribution_line"), المصدر=h["source"], الرقم=str(h["number"]),
                               الدرجة=h["grade"], المحدث=h["grader"]),
-                "via": texts.text("hadith_via_hadeethenc") if h.get("via") == "hadeethenc" else ""}
+                "via": texts.text("hadith_via_hadeethenc") if h.get("via") == "hadeethenc" else "",
+                "verify_url": h.get("verify_url", "")}
                for h in entry.get("hadiths", [])]
     verses = [verse_item(ref) for ref in entry.get("verses", [])]
     if verses or tafsir or hadiths:
@@ -92,8 +93,9 @@ def answer_blocks(entry: dict, approved: dict[str, dict], layer: str = "summary"
         blocks.append({"type": "science", "note": texts.text("science_block_note"),
                        "items": [{"claim": s["claim"], "degree": s["degree"], "degree_label": labels[s["degree"]],
                                   "source": s["source"], "url": s["url"]} for s in entry["science"]]})
+    more = [{"name": m["name"], "locator": m.get("locator", ""), "url": m["url"]} for m in entry.get("more_sources", [])]
     blocks.append({"type": "sources", "items": [{"name": source["name"], "locator": source.get("locator", ""),
-                                                 "url": source["url"]}]})
+                                                 "url": source["url"]}, *more]})
     review_key = "reviewer_attribution_ai_drafted" if entry.get("drafted_with_ai") else "reviewer_attribution"
     blocks.append({"type": "review", "text": _fill(texts.text(review_key), التاريخ=entry["review"]["reviewed_at"])})
     related = [{"id": rid, "question": approved[rid]["question"]} for rid in entry.get("related", []) if rid in approved]
@@ -119,7 +121,8 @@ def final_check(blocks: list[dict], entry: dict) -> None:
             assert verse["text"] == " ".join(v.text for v in quran.lookup(verse["ref"])), verse["ref"]
         for shown, stored in zip(block.get("hadiths", []), entry.get("hadiths", [])):
             assert shown["text"] == stored["text"] and shown["url"] == stored["url"]
-        if block["type"] == "sources":
+        if block["type"] == "sources" and block.get("items"):
             assert block["items"][0]["url"] == entry["source"]["url"]
+            assert [i["url"] for i in block["items"][1:]] in ([], [m["url"] for m in entry.get("more_sources", [])])
         if block["type"] == "sharia":
             assert len(block["hadiths"]) == len(entry.get("hadiths", [])), "hadith count"

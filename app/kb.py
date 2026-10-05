@@ -26,7 +26,11 @@ SCIENCE_FIELDS = ("claim", "degree", "source", "url", "licence")
 TAFSIR_FIELDS = ("mufassir", "summary", "source", "url")
 # Fields the user sees. Changing any of them after approval invalidates the approval.
 VISIBLE_FIELDS = ("question", "summary", "body", "explain_simple", "verses", "tafsir",
-                  "hadiths", "science", "source", "level", "related", "chat")
+                  "hadiths", "science", "source", "level", "related", "chat", "more_sources")
+# Further pages the answer cites by name (a fatwa, an answer number, «بينات»): shown with links under the answer.
+MORE_SOURCE_FIELDS = ("name", "url")
+# The reference package (p. 3): a hadith outside the two Sahihs is checked on the hadith encyclopedia or Shamela.
+HADITH_VERIFY_DOMAINS = ("dorar.net", "shamela.ws")
 # The reviewer's switch for the dialogue layer: "card_only" shows the approved card alone (sensitive rulings).
 CHAT_MODES = (None, "free", "card_only")
 TEXT_FIELDS = ("question", "summary", "body", "explain_simple")
@@ -128,9 +132,22 @@ def validate_entry(entry: dict) -> tuple[list[str], list[str]]:
             continue
         if not _domain_ok(item["url"], sources["domains"]):
             errors.append(f"الحديث {i}: رابط خارج القائمة المعتمدة: {item['url']}")
+        if not any(book in item["source"] for book in ("البخاري", "مسلم")):
+            if not item.get("verify_url"):
+                warnings.append(f"الحديث {i}: من غير الصحيحين بلا رابط تحقق من الموسوعة الحديثية أو الشاملة "
+                                f"(شرط الحزمة العلمية، ص3)")
+            elif not _domain_ok(item["verify_url"], HADITH_VERIFY_DOMAINS):
+                errors.append(f"الحديث {i}: رابط التحقق ليس من الدرر أو الشاملة: {item['verify_url']}")
         weak = any(word in item["grade"] for word in WEAK_GRADES)
         if weak and item.get("purpose") != "show_weakness":
             errors.append(f"الحديث {i}: درجته «{item['grade']}» فلا يُعرض إلا بغرض show_weakness")
+
+    for i, item in enumerate(entry.get("more_sources", []), 1):
+        missing = [f for f in MORE_SOURCE_FIELDS if not str(item.get(f) or "").strip()]
+        if missing:
+            errors.append(f"المصدر الإضافي {i}: حقول ناقصة {missing}")
+        elif not _domain_ok(item["url"], sources["domains"]):
+            errors.append(f"المصدر الإضافي {i}: رابط خارج القائمة المعتمدة: {item['url']}")
 
     for i, item in enumerate(entry.get("science", []), 1):
         missing = [f for f in SCIENCE_FIELDS if not str(item.get(f) or "").strip()]

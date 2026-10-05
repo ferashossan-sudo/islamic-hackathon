@@ -280,6 +280,7 @@
         item.append(el("p", null, h.text));
         const line = el("p", "hint", h.line + " · ");
         line.append(externalLink(label("verify", "تحقق من المصدر"), h.url));
+        if (h.verify_url) line.append(" · ", externalLink(label("verify_grade", "حكمه في الموسوعة الحديثية"), h.verify_url));
         item.append(line);
         if (h.via) item.append(el("p", "hint", h.via));
         box.append(item);
