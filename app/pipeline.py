@@ -255,6 +255,15 @@ def _followup(prev: dict, req: ChatRequest, s: Settings) -> ChatResponse:
     return ChatResponse(kind="refer", entry_id=prev["id"], version=s.version, blocks=blocks)
 
 
+STICKY_OTHER_MIN = 0.35  # another entry at least this close by keywords means the person changed topic
+
+
+def _stays_on_topic(message: str, prev: dict) -> bool:
+    """True unless the message is clearly closer to another approved question than to the previous one."""
+    hits = STATE.index.search(message, k=2) if STATE.index else []
+    return not hits or hits[0][0] == prev["id"] or hits[0][1] < STICKY_OTHER_MIN
+
+
 def model_decision(decision, message: str, prev: dict | None, req: ChatRequest, s: Settings) -> ChatResponse:
     """Build-plan §2 decision table, read top to bottom."""
     if decision.route == "distress":
@@ -271,6 +280,10 @@ def model_decision(decision, message: str, prev: dict | None, req: ChatRequest, 
     if req.context.repeat_count >= 2 and resolved is not None and answered_before(resolved["id"], req):
         return repeat_response(resolved["id"], s, degraded=False)
     if decision.route == "followup" and prev is not None:
+        if s.converse_enabled and prev.get("chat") != "card_only":
+            # The dialogue takes the follow-up («وضّح أكثر»، an objection): it can explain again or answer the
+            # objection from the answer's reasoning layer. If it fails, attach_chat shows the next layer instead.
+            return answer(prev["id"], s, degraded=False)
         return _followup(prev, req, s)
     if entry is None and _asks_hadith_grade(message):
         return ChatResponse(kind="refer", version=s.version, blocks=[message_block("referral_hadith_check")])
@@ -284,6 +297,11 @@ def model_decision(decision, message: str, prev: dict | None, req: ChatRequest, 
                 blocks.append({"type": "related", "title": texts.pairs("ui_labels")["may_help"],
                                "items": [{"id": entry["id"], "question": compose.question_text(entry["question"])}]})
             return ChatResponse(kind="abstain", version=s.version, blocks=blocks)
+    if (entry is None or decision.confidence == "low") and prev is not None and s.converse_enabled \
+            and prev.get("chat") != "card_only" and _stays_on_topic(message, prev):
+        # Mid-discussion, an objection the router could not place («قصصه منقولة من التوراة»): the dialogue stays
+        # on the topic and answers it from the answer's reasoning layer, or says honestly that it does not cover it.
+        return answer(prev["id"], s, degraded=False)
     if entry is not None:
         top3 = [eid for eid, _ in (STATE.index.search(message, k=3) if STATE.index else [])]
         accepted = decision.confidence == "high" or (

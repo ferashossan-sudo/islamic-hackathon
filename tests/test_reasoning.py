@@ -474,3 +474,29 @@ def fakes_reasoning_drop(monkeypatch):
     monkeypatch.setitem(converse.PROVIDERS, "gemini", failing_compose)
     yield lambda message: asyncio.run(pipeline.handle(ChatRequest(message=message), SETTINGS))[1]
     pipeline.STATE.entries, pipeline.STATE.index, pipeline.STATE.source_names = before
+
+
+def test_a_followup_goes_to_the_dialogue_not_the_next_layer(monkeypatch):
+    """An objection routed as follow-up is answered by the dialogue (from the reasoning layer), not «that is all»."""
+    before = (pipeline.STATE.entries, pipeline.STATE.index, pipeline.STATE.source_names)
+    pipeline.load([with_reasoning()])
+
+    async def fake_router(s, model, system, payload, timeout):
+        return json.dumps({"route": "followup", "entry_id": "kawn-reason-x", "confidence": "high",
+                           "oos_reason": "none", "evidence_request": "none", "framing": ""}), {}
+
+    async def fake_compose(s, model, payload, timeout):
+        return json.dumps({"reply": FROM_REASONING}, ensure_ascii=False), {}
+
+    async def fake_verify(s, model, payload, timeout):
+        return json.dumps({"unsupported": []}), {}
+
+    monkeypatch.setitem(router.PROVIDERS, "gemini", fake_router)
+    monkeypatch.setitem(converse.PROVIDERS, "gemini", fake_compose)
+    monkeypatch.setitem(converse.VERIFIERS, "gemini", fake_verify)
+    try:
+        req = ChatRequest(message="الكون ممكن يكون أزلي، ليش لا؟", context={"prev_entry_id": "kawn-reason-x"})
+        r = asyncio.run(pipeline.handle(req, SETTINGS))[1]
+        assert r.kind == "answer" and r.blocks[0]["type"] == "chat"
+    finally:
+        pipeline.STATE.entries, pipeline.STATE.index, pipeline.STATE.source_names = before
