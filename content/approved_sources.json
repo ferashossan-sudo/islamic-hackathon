@@ -1,5 +1,5 @@
 {
-  "note": "Domains allowed in KB links. Tafsir links must also be in tafsir_domains. Science comes only from sources whose terms allow use in an AI product (checked on 4 October 2026, see SOURCES.md): U.S. government science agencies (public domain), ESO and NOIRLab press-release texts (CC BY 4.0), UC Berkeley Understanding Evolution (CC BY-NC-SA 4.0), Our World in Data (CC BY 4.0) and Wikipedia (CC BY-SA 4.0) as a last resort. Excluded: NASA, Hubble and Webb sites (their guidelines restrict AI use), OpenStax (no ingestion into AI products without written permission), the A.D.A.M. encyclopedia inside MedlinePlus (/ency/, AI use prohibited), ESA, CK-12 and the National Academies (all rights reserved). Saudi scholarly sources (alifta.gov.sa, binbaz.org.sa, binothaimeen.net, alfawzan.af.org.sa) are used for explanation and creed with attribution; verse meanings still come only from the approved tafsir sources.",
+  "note": "Domains allowed in KB links. Tafsir links must also be in tafsir_domains. Science comes only from sources whose terms allow use in an AI product (checked on 4 October 2026, see SOURCES.md): U.S. government science agencies (public domain), ESO and NOIRLab press-release texts (CC BY 4.0), UC Berkeley Understanding Evolution (CC BY-NC-SA 4.0), Our World in Data (CC BY 4.0) and Wikipedia (CC BY-SA 4.0) as a last resort. Excluded: NASA, Hubble and Webb sites (their guidelines restrict AI use), OpenStax (no ingestion into AI products without written permission), the A.D.A.M. encyclopedia inside MedlinePlus (/ency/, AI use prohibited), ESA, CK-12 and the National Academies (all rights reserved). Saudi scholarly sources (binbaz.org.sa, binothaimeen.net; alifta.gov.sa for referrals) are used for explanation and creed with attribution; verse meanings still come only from the approved tafsir sources.",
   "domains": [
     "dorar.net",
     "hadeethenc.com",
@@ -16,7 +16,6 @@
     "shamela.ws",
     "tafsir.net",
     "binothaimeen.net",
-    "alfawzan.af.org.sa",
     "energy.gov",
     "nsf.gov",
     "eso.org",
