@@ -378,15 +378,37 @@ def kb_hash(entries: list[dict]) -> str | None:
     return "sha256:" + hashlib.sha256(joined.encode("utf-8")).hexdigest()[:16]
 
 
-def preview_drafts(path: Path = KB_PATH) -> list[dict]:
-    """Team-only local preview: valid drafts treated as approved in memory. Nothing is written."""
-    out = []
+DRAFTS_DIR = ROOT / "private" / "drafts"  # local only (gitignored): the batches under review
+
+
+def preview_drafts(path: Path = KB_PATH, drafts_dir: Path = DRAFTS_DIR) -> list[dict]:
+    """Team-only local preview: valid drafts treated as approved in memory. Nothing is written.
+
+    Reads content/kb.json, then the batches under private/drafts/ when they exist (never on the server);
+    for each id the last VALID copy wins, as in eval/run_eval.py load_drafts.
+    """
+    versions: dict[str, list[dict]] = {}
     for entry in read_all(path):
-        if entry.get("status") == "rejected" or validate_entry(entry)[0]:
-            continue
-        e = json.loads(json.dumps(entry))
-        e["status"] = "approved"
-        e["review"] = {"reviewer": "معاينة مسودة", "reviewed_at": "2026-10-04", "note": "",
-                       "approved_hash": approved_hash(e), "reasoning_hash": reasoning_hash(e)}
-        out.append(e)
+        versions.setdefault(entry.get("id"), []).append(entry)
+    for file in sorted(drafts_dir.glob("*/*.json")) if drafts_dir.exists() else []:
+        data = json.loads(file.read_text(encoding="utf-8"))
+        for entry in data if isinstance(data, list) else [data]:
+            versions.setdefault(entry.get("id"), []).append(entry)
+    out = []
+    for copies in versions.values():
+        for entry in reversed(copies):
+            try:
+                e = normalize_refs(json.loads(json.dumps(entry)))
+            except ValueError:
+                continue
+            if e.get("status") == "rejected" or validate_entry(e)[0]:
+                continue
+            e["status"] = "approved"
+            e["review"] = {"reviewer": "معاينة مسودة", "reviewed_at": "2026-10-04", "note": "",
+                           "approved_hash": approved_hash(e), "reasoning_hash": reasoning_hash(e)}
+            out.append(e)
+            break
+    ids = {e["id"] for e in out}
+    for e in out:  # a related id that is not in the preview would break the related block
+        e["related"] = [r for r in e.get("related", []) if r in ids]
     return out
