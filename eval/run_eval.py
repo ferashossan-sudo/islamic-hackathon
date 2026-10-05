@@ -188,8 +188,17 @@ async def run_case(case: dict, settings, sleep: float) -> dict:
             "entry_id": final.entry_id,
             "layer": final.layer, "degraded": final.degraded, "llm_calls": calls,
             "chat": any(b["type"] == "chat" for b in final.blocks),
+            **sharia_in_chat(final.blocks),
             "passed": not failed, "failed_checks": failed, "pending_checks": pending,
             "_text": plain_text(final)}
+
+
+def sharia_in_chat(blocks: list[dict]) -> dict:
+    """How many verses and hadiths the dialogue reply quotes (counts only, no text): the field survey's readers
+    judge an answer mostly by its Quran or Sunnah evidence, so we measure how often a reply carries one."""
+    segments = [s for b in blocks if b["type"] == "chat" for s in b.get("segments", [])]
+    return {"chat_verses": sum(s.get("type") == "verse" for s in segments),
+            "chat_hadiths": sum(s.get("type") == "hadith" for s in segments)}
 
 
 def load_drafts() -> list[dict]:

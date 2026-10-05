@@ -95,15 +95,25 @@ async def selftest(request: Request) -> JSONResponse:
     return JSONResponse({"ok": ok, "kind": response.kind, "degraded": response.degraded, "llm": router.health(settings)})
 
 
+def _featured_rank(entry: dict) -> int:
+    """Suggested questions in the order of the field survey's most asked topics: «featured» is a rank (1 first).
+
+    A plain true (older entries) comes after every ranked one.
+    """
+    rank = entry["featured"]
+    return rank if type(rank) is int else 1000
+
+
 @app.get("/api/config")
 async def config() -> dict:
     return {
         "version": settings.version,
         "suggest_form_url": settings.suggest_form_url,
         "labels": texts.pairs("ui_labels"),
-        "texts": {key: texts.text(key) for key in ("network_error", "support_line", "degraded_badge", "degraded_mode")},
+        "texts": {key: texts.text(key) for key in ("network_error", "support_line", "degraded_badge", "degraded_mode",
+                                                   "science_degree_hints")},
         "featured": [{"id": e["id"], "question": compose.question_text(e["question"])}
-                     for e in APPROVED if e.get("featured")][:6],
+                     for e in sorted((e for e in APPROVED if e.get("featured")), key=_featured_rank)][:6],
         "preview_drafts": PREVIEW_DRAFTS,
     }
 

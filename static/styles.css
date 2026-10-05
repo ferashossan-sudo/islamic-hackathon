@@ -364,7 +364,7 @@ main {
   text-align: start;
 }
 
-.review-line { margin-block-start: 12px; }
+.review-line { margin-block-start: 6px; }
 
 /* Distress: calm, distinct, numbers first */
 .msg.kind-distress {
@@ -432,17 +432,27 @@ main {
   font-weight: 600;
 }
 
-/* One message: the sources in one folded line, then follow-up questions. */
+/* One message: the sharia texts and the sources in one folded line each, then follow-up questions. */
+.sharia-compact,
 .sources-compact {
   margin-block-start: 8px;
   font-size: 0.9rem;
 }
+.sharia-compact > summary,
 .sources-compact > summary {
   cursor: pointer;
   color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+.sharia-compact[open] > summary,
+.sources-compact[open] > summary { white-space: normal; }
+.sharia-compact > summary { color: var(--accent); }
+.sharia-compact .block-sharia { margin-block-start: 6px; }
 .sources-compact ul { margin: 6px 0 0; padding-inline-start: 18px; }
 .sources-compact li { margin-block-end: 4px; }
+.degree-hint { margin: 2px 0; }
 .follow-ups { margin-block-start: 8px; }
 .follow-ups .hint { margin: 0 0 4px; }
 

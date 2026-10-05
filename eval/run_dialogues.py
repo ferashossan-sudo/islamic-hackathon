@@ -22,7 +22,7 @@ sys.path.insert(0, str(ROOT / "eval"))
 from app import arabic, config, converse, limits, main, pipeline, router  # noqa: E402
 from app.schemas import ChatContext, ChatRequest, HistoryItem, RecentItem  # noqa: E402
 from auto_checks import check_text  # noqa: E402
-from run_eval import load_drafts, plain_text, segments_text  # noqa: E402
+from run_eval import load_drafts, plain_text, segments_text, sharia_in_chat  # noqa: E402
 
 OUT = ROOT / "eval" / "private" / "dialogues"
 REPEAT_SIMILARITY = 0.8  # as in static/app.js
@@ -49,7 +49,8 @@ async def run_case(case: dict, settings, sleep: float, events: list) -> dict:
         reply = segments_text(chat["segments"]) if chat else ""
         turns.append({"user": message, "status": status, "kind": resp.kind, "entry": resp.entry_id,
                       "degraded": resp.degraded, "keys": [b.get("key") for b in resp.blocks if b.get("key")],
-                      "chat": reply, "card": plain_text(card), "seconds": round(time.time() - started, 1),
+                      "chat": reply, **sharia_in_chat(resp.blocks),
+                      "card": plain_text(card), "seconds": round(time.time() - started, 1),
                       "calls": [{k: e.get(k) for k in ("call", "model", "ok")} for e in events if e.get("event") == "llm"],
                       "g13": [e.get("reason") for e in events if e.get("event") == "g13"],
                       "checks": check_text(reply + "\n" + plain_text(card))})

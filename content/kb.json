@@ -92,7 +92,7 @@
       "kawn-science-philosophy",
       "kawn-god-existence"
     ],
-    "featured": false,
+    "featured": 1,
     "prepared_by": "فراس",
     "drafted_with_ai": true,
     "review_notes": [
@@ -250,7 +250,7 @@
       "kawn-god-existence",
       "kawn-science-philosophy"
     ],
-    "featured": true,
+    "featured": 2,
     "prepared_by": "فراس",
     "drafted_with_ai": true,
     "review_notes": [
@@ -563,7 +563,7 @@
       "tasawur-waswasa",
       "tasawur-tawhid"
     ],
-    "featured": true,
+    "featured": 7,
     "prepared_by": "فراس",
     "drafted_with_ai": true,
     "review_notes": [],
@@ -742,7 +742,7 @@
       "kawn-bigbang-quran",
       "kawn-expansion-51-47"
     ],
-    "featured": true,
+    "featured": 8,
     "prepared_by": "فراس",
     "drafted_with_ai": true,
     "review_notes": [],
@@ -1017,7 +1017,7 @@
     "related": [
       "tasawur-tawhid"
     ],
-    "featured": true,
+    "featured": false,
     "prepared_by": "فراس",
     "drafted_with_ai": true,
     "review_notes": [],
@@ -1715,7 +1715,7 @@
       "kawn-god-existence",
       "tasawur-tawhid"
     ],
-    "featured": true,
+    "featured": false,
     "prepared_by": "فراس",
     "drafted_with_ai": true,
     "review_notes": [],

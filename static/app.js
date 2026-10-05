@@ -289,32 +289,16 @@
       });
     },
     sharia(card, b) {
-      const box = section(card, label("sharia_texts", "النصوص الشرعية"), "block-sharia");
-      (b.verses || []).forEach((v) => {
-        box.append(el("p", "verse", "﴿" + v.text + "﴾"), el("p", "verse-ref", "[" + v.label + "]"));
-      });
-      (b.tafsir || []).forEach((t) => {
-        const item = el("div", "tafsir");
-        paragraphs(item, t.summary);
-        const line = el("p", "hint", t.label + " · ");
-        line.append(externalLink(label("verify", "تحقق من المصدر"), t.url));
-        item.append(line);
-        box.append(item);
-      });
-      (b.hadiths || []).forEach((h) => {
-        const item = el("div", "hadith");
-        item.append(el("p", null, h.text));
-        const line = el("p", "hint", h.line + " · ");
-        line.append(externalLink(label("verify", "تحقق من المصدر"), h.url));
-        if (h.verify_url) line.append(" · ", externalLink(label("verify_grade", "حكمه في الموسوعة الحديثية"), h.verify_url));
-        item.append(line);
-        if (h.via) item.append(el("p", "hint", h.via));
-        box.append(item);
-      });
+      shariaInto(section(card, label("sharia_texts", "النصوص الشرعية"), "block-sharia"), b);
     },
     science(card, b) {
       const box = section(card, label("science", "معلومات علمية"), "block-science");
       box.append(el("p", "hint", b.note));
+      // What each degree means, for the degrees this answer uses («حقيقة ثابتة: ثبتت بالرصد…»).
+      const used = new Set((b.items || []).map((s) => s.degree_label));
+      String((config.texts && config.texts.science_degree_hints) || "").split("\n").forEach((line) => {
+        if (used.has(line.split(":")[0].trim())) box.append(el("p", "hint degree-hint", line));
+      });
       (b.items || []).forEach((s) => {
         const item = el("div", "science-item");
         item.append(el("span", "tag degree degree-" + s.degree, s.degree_label), el("p", null, s.claim));
@@ -369,9 +353,53 @@
     },
   };
 
-  // The sources, folded in one line: «المصادر (n)». They include the scientific sources the reply may name
-  // (each science item's source), once each.
-  function compactSources(card, b, science) {
+  // The verses (mushaf text with their reference), tafsir summaries and hadiths of the approved answer.
+  function shariaInto(box, b) {
+    (b.verses || []).forEach((v) => {
+      box.append(el("p", "verse", "﴿" + v.text + "﴾"), el("p", "verse-ref", "[" + v.label + "]"));
+    });
+    (b.tafsir || []).forEach((t) => {
+      const item = el("div", "tafsir");
+      paragraphs(item, t.summary);
+      const line = el("p", "hint", t.label + " · ");
+      line.append(externalLink(label("verify", "تحقق من المصدر"), t.url));
+      item.append(line);
+      box.append(item);
+    });
+    (b.hadiths || []).forEach((h) => {
+      const item = el("div", "hadith");
+      item.append(el("p", null, h.text));
+      const line = el("p", "hint", h.line + " · ");
+      line.append(externalLink(label("verify", "تحقق من المصدر"), h.url));
+      if (h.verify_url) line.append(" · ", externalLink(label("verify_grade", "حكمه في الموسوعة الحديثية"), h.verify_url));
+      item.append(line);
+      if (h.via) item.append(el("p", "hint", h.via));
+      box.append(item);
+    });
+  }
+
+  // The Quran and Sunnah texts of the approved answer, in one folded line under the reply. Most readers judge an
+  // answer by its sharia evidence (the team's field survey), so its references stay in sight: «النصوص الشرعية (3):
+  // [الطور: 35-36] · [الروم: 30] · حديث».
+  function compactSharia(card, b) {
+    const verses = b.verses || [];
+    const hadiths = b.hadiths || [];
+    if (!verses.length && !hadiths.length) return;
+    const refs = verses.map((v) => "[" + v.label + "]");
+    if (hadiths.length) refs.push(label("hadith_short", "حديث") + (hadiths.length > 1 ? " (" + hadiths.length + ")" : ""));
+    const box = el("details", "block sharia-compact");
+    box.append(el("summary", null, label("sharia_texts", "النصوص الشرعية") + " (" + (verses.length + hadiths.length) + "): "
+      + refs.join(" · ")));
+    const inner = el("div", "block-sharia");
+    shariaInto(inner, b);
+    box.append(inner);
+    card.append(box);
+  }
+
+  // The sources, folded in one line that names the approved answer's own source: «المصادر (n): الإسلام سؤال وجواب…».
+  // They include the scientific sources with their degree, and the sources of the reviewed «بالعقل والعلم» layer
+  // the reply is built from, once each.
+  function compactSources(card, b, science, reasoning) {
     const items = [];
     const seen = new Set();
     const add = (s) => {
@@ -380,10 +408,12 @@
       items.push(s);
     };
     ((b && b.items) || []).forEach(add);
-    ((science && science.items) || []).forEach((s) => add({ name: s.source, locator: "", url: s.url }));
+    ((science && science.items) || []).forEach((s) => add({ name: s.source + " · " + s.degree_label, locator: "", url: s.url }));
+    ((reasoning && reasoning.steps) || []).concat((reasoning && reasoning.objections) || [])
+      .forEach((s) => add({ name: s.source, locator: s.locator, url: s.url }));
     if (!items.length) return;
     const box = el("details", "block sources-compact");
-    box.append(el("summary", null, label("sources", "المصادر") + " (" + items.length + ")"));
+    box.append(el("summary", null, label("sources", "المصادر") + " (" + items.length + "): " + items[0].name));
     const list = el("ul");
     items.forEach((s) => {
       const li = el("li");
@@ -414,7 +444,7 @@
   }
 
   // Blocks that go under «الأدلة والتفاصيل» when the approved card is shown without a conversational reply.
-  const DETAIL_BLOCKS = new Set(["sharia", "science", "review", "related"]);
+  const DETAIL_BLOCKS = new Set(["reasoning", "science", "related"]);
 
   function renderResponse(data) {
     const card = el("article", "msg bot kind-" + (data.kind || "abstain"));
@@ -431,12 +461,14 @@
       scrollToEnd(card);
       return;
     }
-    // One message: the reply (or the approved summary), then the sources and follow-up questions in one line
-    // each, and everything else folded one tap away.
+    // One message: the reply (or the approved summary); then, one line each, its sharia texts, its sources and who
+    // reviewed it, and the follow-up questions; everything else folded one tap away.
     const chat = blocks.find((b) => b.type === "chat");
     const reasoning = blocks.find((b) => b.type === "reasoning");
     const sources = blocks.find((b) => b.type === "sources");
     const science = blocks.find((b) => b.type === "science");
+    const sharia = blocks.find((b) => b.type === "sharia");
+    const review = blocks.find((b) => b.type === "review");
     // «اقنعني بالعقل» without a reply: the server puts the reviewed «بالعقل والعلم» layer first, shown as the answer.
     const lead = !chat && blocks[0].type === "reasoning" ? blocks[0] : null;
     const folded = el("details", "card-details");
@@ -446,14 +478,17 @@
     if (lead) renderers.reasoning(card, lead);
     blocks.forEach((block) => {
       const render = renderers[block.type];
-      if (!render || block.type === "reasoning" || block.type === "sources") return;
+      if (!render || block === lead || block === review || block.type === "sources") return;
+      if (block === sharia && !lead) return;  // its own line below; with «اقنعني بالعقل» it stays folded
       // With a reply (or the reasoning as the answer), the whole approved card is folded; notices stay above it.
       const inFold = chat || lead ? !["chat", "notice", "message", "framing"].includes(block.type)
         : DETAIL_BLOCKS.has(block.type);
       render(inFold ? folded : card, block);
       if (inFold) foldedCount += 1;
     });
-    if (sources || science) compactSources(card, sources, science);
+    if (sharia && !lead) compactSharia(card, sharia);
+    if (sources || science || reasoning) compactSources(card, sources, science, reasoning);
+    if (review) renderers.review(card, review);
     if (!lead) followUps(card, reasoning);  // with the layer as the answer, its objections are already shown
     if (foldedCount) card.append(folded);
     log.append(card);

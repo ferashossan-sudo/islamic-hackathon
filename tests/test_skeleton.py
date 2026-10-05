@@ -112,3 +112,10 @@ def test_draft_preview_is_off_unless_dev_and_flag():
 def test_head_requests_for_uptime_monitors():
     assert client.head("/").status_code == 200
     assert client.head("/health").status_code == 200
+
+
+def test_config_sends_the_science_degree_hints_and_ranks_the_suggested_questions(monkeypatch):
+    texts_sent = client.get("/api/config").json()["texts"]
+    assert texts_sent["science_degree_hints"].startswith("حقيقة ثابتة:")
+    entries = [{"id": "c", "featured": True}, {"id": "a", "featured": 2}, {"id": "b", "featured": 1}]
+    assert [e["id"] for e in sorted(entries, key=main._featured_rank)] == ["b", "a", "c"]

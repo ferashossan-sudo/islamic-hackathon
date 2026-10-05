@@ -500,3 +500,14 @@ def test_a_followup_goes_to_the_dialogue_not_the_next_layer(monkeypatch):
         assert r.kind == "answer" and r.blocks[0]["type"] == "chat"
     finally:
         pipeline.STATE.entries, pipeline.STATE.index, pipeline.STATE.source_names = before
+
+
+def test_frontend_shows_the_sharia_texts_the_named_source_and_the_reviewer_under_the_reply():
+    # The field survey: most readers judge an answer by its Quran or Sunnah evidence and by who said it.
+    js = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
+    css = (ROOT / "static" / "styles.css").read_text(encoding="utf-8")
+    assert "function compactSharia(card, b)" in js and '"block sharia-compact"' in js
+    assert '" (" + items.length + "): " + items[0].name' in js  # the approved answer's own source is named
+    assert "if (review) renderers.review(card, review);" in js
+    assert 'const DETAIL_BLOCKS = new Set(["reasoning", "science", "related"]);' in js
+    assert ".sharia-compact" in css and "text-overflow: ellipsis" in css
