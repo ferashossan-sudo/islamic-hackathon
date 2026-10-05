@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from app import gemini  # noqa: E402
-from app.config import load_settings  # noqa: E402
+from app.config import for_evaluation, load_settings  # noqa: E402
 
 SETS = {"critical": ROOT / "eval" / "cases" / "critical.jsonl", "dev": ROOT / "eval" / "cases" / "dev.jsonl",
         "drafts": ROOT / "eval" / "cases" / "dev_drafts.jsonl"}
@@ -26,7 +26,7 @@ SYSTEM = ("أنت مساعد إسلامي عام. أجب السائل بالعر
 
 
 async def main_async(args) -> int:
-    s = load_settings()
+    s = for_evaluation(load_settings())
     cases = [json.loads(line) for line in SETS[args.set].read_text(encoding="utf-8").splitlines() if line.strip()]
     if args.limit:
         cases = cases[:args.limit]

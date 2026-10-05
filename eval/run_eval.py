@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from app import arabic, guards, kb, limits, main, pipeline, quran, router  # noqa: E402
+from app import arabic, config, guards, kb, limits, main, pipeline, quran, router  # noqa: E402
 from app.schemas import ChatContext, ChatRequest, RecentItem  # noqa: E402
 
 SETS = {"critical": ROOT / "eval" / "cases" / "critical.jsonl", "dev": ROOT / "eval" / "cases" / "dev.jsonl",
@@ -231,7 +231,7 @@ async def main_async(args) -> int:
     cases = [json.loads(line) for line in SETS[args.set].read_text(encoding="utf-8").splitlines() if line.strip()]
     if args.only:
         cases = [c for c in cases if c["id"] in args.only.split(",")]
-    settings = main.settings
+    settings = config.for_evaluation(main.settings)
     if args.system == "lexical":
         settings = dataclasses.replace(settings, llm_enabled=False)
     if args.routing_only:

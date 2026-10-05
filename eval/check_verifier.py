@@ -15,13 +15,13 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from app import converse, kb  # noqa: E402
-from app.config import load_settings  # noqa: E402
+from app.config import for_evaluation, load_settings  # noqa: E402
 
 CASES = ROOT / "eval" / "cases" / "verifier.jsonl"
 
 
 async def main_async(sleep: float) -> int:
-    s = load_settings()
+    s = for_evaluation(load_settings())
     entries = {e["id"]: e for e in kb.read_all()}
     cases = [json.loads(line) for line in CASES.read_text(encoding="utf-8").splitlines() if line.strip()]
     right = failed_calls = 0

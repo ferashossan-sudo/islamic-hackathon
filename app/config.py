@@ -93,3 +93,12 @@ def load_settings() -> Settings:
         version=commit[:7] or "dev",
         submission_commit=os.environ.get("SUBMISSION_COMMIT", ""),
     )
+
+
+def for_evaluation(s: Settings) -> Settings:
+    """Evaluation runs use their own key when GEMINI_API_KEY_EVAL is set (another Google project), so they never
+    spend the live site's free quota."""
+    import dataclasses
+
+    key = os.environ.get("GEMINI_API_KEY_EVAL", "").strip()
+    return dataclasses.replace(s, gemini_api_key=key) if key else s

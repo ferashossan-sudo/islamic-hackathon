@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "eval"))
 
-from app import arabic, converse, limits, main, pipeline, router  # noqa: E402
+from app import arabic, config, converse, limits, main, pipeline, router  # noqa: E402
 from app.schemas import ChatContext, ChatRequest, HistoryItem, RecentItem  # noqa: E402
 from auto_checks import check_text  # noqa: E402
 from run_eval import load_drafts, plain_text, segments_text  # noqa: E402
@@ -92,7 +92,7 @@ async def main_async(args) -> int:
     cases = read_cases(Path(args.cases))
     if args.only:
         cases = [c for c in cases if c["id"] in args.only.split(",")]
-    settings = main.settings
+    settings = config.for_evaluation(main.settings)
     if args.drafts:
         pipeline.load(load_drafts())
     limits.LIMITER.check = lambda *a, **k: 0  # the evaluation is not a visitor
