@@ -250,6 +250,8 @@ def _decision_items(entries: list[dict]) -> tuple[list[dict], dict[str, list[dic
     lead, sharia = [], {}
     for e in entries:
         for n, note in enumerate(e.get("review_notes") or [], 1):
+            if note.startswith("[قرار"):  # already decided («[قرار قائد الفريق ...]»)
+                continue
             owner = next((v for k, v in OWNERS.items() if note.startswith(k)), "sharia")
             text = note
             for k in OWNERS:
