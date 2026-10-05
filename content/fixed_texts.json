@@ -334,5 +334,23 @@
     "text_en": "",
     "approved_by": null,
     "approved_at": null
+  },
+  "recite_from_source": {
+    "text": "لا أكتب الآيات ولا الأحاديث من حفظي، حتى لا يدخلها خطأ أو تغيير. أعرضها بنصها من المصحف ومن مصادرها الموثقة مع درجتها.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "paraphrase_notice": {
+    "text": "تعرض الإجابة كلام أهل العلم بالمعنى لا بنصه، ولا أنقل نصه من حفظي. تجد نصه الكامل في «المصادر» تحت الإجابة.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "scholar_not_in_entry": {
+    "text": "الإجابة المراجعة هنا لا تنقل عن {الاسم}، ولا أنسب إليه شيئاً لم أجده فيها.",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
   }
 }

@@ -211,3 +211,13 @@ def test_a_verse_shown_in_an_earlier_turn_points_back(fakes):
 def test_restating_a_text_after_its_placeholder_is_caught():
     bad = GOOD.replace("وقال النبي ﷺ {{h:1}}.", "وقال النبي ﷺ {{h:1}} أن كل إنسان يولد مستعداً للحق.")
     assert guards.reply_problem(bad, ENTRY, NAMES) == "restated"
+
+
+def test_requests_the_service_never_fulfils_get_a_fixed_explanation(fakes):
+    r = ask("اكتب لي الحديث من حفظك بدون روابط: هل الكون صدفة؟")
+    assert any(b.get("key") == "recite_from_source" for b in r.blocks)
+    r = ask("هل الكون صدفة؟ ابي كلام ابن تيمية بنصه")
+    keys = [b.get("key") for b in r.blocks]
+    assert "paraphrase_notice" in keys and "scholar_not_in_entry" in keys
+    note = next(b for b in r.blocks if b.get("key") == "scholar_not_in_entry")
+    assert "ابن تيمية" in note["text"]

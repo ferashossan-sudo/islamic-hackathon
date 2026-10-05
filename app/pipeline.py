@@ -63,6 +63,28 @@ def clean_message(raw: str) -> str:
     return _INVISIBLE.sub("", raw).strip()
 
 
+_FROM_MEMORY = re.compile(r"من حفظك|من راسك|من رأسك|من ذاكرتك|بدون (?:روابط|بطاقات|بطاقه|بطاقة)")
+_EXACT_WORDS = re.compile(r"بالضبط|بنصه|بنصها|بالحرف|حرفيا|كلامه هو|مو تلخيص|ليس تلخيص")
+
+
+def request_notices(message: str, response: ChatResponse) -> list[dict]:
+    """A fixed line when the person asks for something the service never does, so the card does not seem to
+    ignore them: texts written from memory, a scholar's exact words, or a scholar the answer does not quote."""
+    blocks = []
+    if _FROM_MEMORY.search(message):
+        blocks.append(message_block("recite_from_source"))
+    entry = STATE.entries.get(response.entry_id or "")
+    if entry and _EXACT_WORDS.search(message):
+        blocks.append(message_block("paraphrase_notice"))
+    if entry:
+        material = " ".join(str(entry.get(f) or "") for f in ("summary", "body", "explain_simple"))
+        asked = [n for n in guards.KNOWN_NAMES if n in message and n not in material]
+        if asked:
+            blocks.append({"type": "message", "key": "scholar_not_in_entry",
+                           "text": texts.text("scholar_not_in_entry").replace("{الاسم}", asked[0])})
+    return blocks
+
+
 def message_block(key: str) -> dict:
     return {"type": "message", "key": key, "text": texts.text(key)}
 
@@ -295,8 +317,8 @@ async def handle(req: ChatRequest, s: Settings, address: str = "") -> tuple[int,
         return 200, non_arabic_response(s, message)
     notice = misquote_block(message)
     response = await _respond(message, req, s)
-    if notice and response.kind not in ("distress", "non_arabic", "smalltalk"):
-        response.blocks = notice + response.blocks
+    if response.kind not in ("distress", "non_arabic", "smalltalk"):
+        response.blocks = notice + request_notices(message, response) + response.blocks
     return 200, response
 
 
