@@ -55,9 +55,9 @@ async def run_case(case: dict, settings, sleep: float, events: list) -> dict:
                       "checks": check_text(reply + "\n" + plain_text(card))})
         if status == 200:
             sent.append(normalized)
-            history.append(HistoryItem(role="user", text=message[:600]))
+            history.append(HistoryItem(role="user", text=message[:1200]))
             if chat:
-                history.append(HistoryItem(role="assistant", text=chat["history_text"][:600]))
+                history.append(HistoryItem(role="assistant", text=chat["history_text"][:1200]))
             history = history[-4:]
             if resp.entry_id:
                 context = ChatContext(prev_entry_id=resp.entry_id, repeat_count=context.repeat_count,

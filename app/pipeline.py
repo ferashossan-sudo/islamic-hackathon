@@ -189,6 +189,7 @@ def lexical_decision(message: str, s: Settings, req: ChatRequest | None = None) 
 
 REFERRALS = {"personal_fatwa": "referral_personal_fatwa", "fiqh": "referral_fiqh",
              "hadith_check": "referral_hadith_check", "family_faith": "referral_family_faith",
+             "judging_groups": "referral_judging_groups",
              "other_topic": "referral_other_topic", "manipulation": "referral_manipulation",
              "none": "referral_other_topic"}
 _HADITH_GRADE = re.compile(r"حديث")
@@ -303,7 +304,7 @@ def _history_text(reply: str, entry: dict) -> str:
     """The reply as plain text for the browser's short history (placeholders become references)."""
     def sub(match):
         kind, value = match.groups()
-        return f"[{quran.label(value)}]" if kind == "q" else "[حديث]"
+        return f"[{quran.label(value)}]" if kind == "q" else f"[حديث {value}]"
     return compose.CHAT_PLACEHOLDER.sub(sub, reply)
 
 
@@ -316,6 +317,11 @@ G13_FEEDBACK = {
                              "{{q:...}} or {{h:n}} placeholders, and say what they show in your own words BEFORE "
                              "the placeholder; never restate them after it.",
     "placeholders": "Too many verses and hadiths: use at most two placeholders, and at most one hadith.",
+    "attribution": "This is a contested answer: every sentence about a ruling, a penalty, a permission or a "
+                   "consensus must name who holds it, from the material, in the same sentence (for example "
+                   "«تذكر الموسوعة الفقهية في الدرر السنية أن...»). Never say «العلماء» or «اتفق» in your own voice.",
+    "restated": "Do not restate a verse or hadith after its placeholder: say what it shows in your own words "
+                "BEFORE the placeholder, and let the placeholder end the sentence.",
     "reason_only": "The person asked to be convinced by reason only: use no verse or hadith placeholder; you may "
                    "say in one short line that the answer also has its sharia evidence for whoever wants it.",
     "prophet_mention": "Do not attribute anything to the Prophet ﷺ unless you use an {{h:n}} placeholder.",
@@ -331,6 +337,14 @@ def g13_feedback(problem: str) -> str:
     return G13_FEEDBACK.get(problem, "Keep strictly to the material.")
 
 
+def _quoted(history: list[dict], entry: dict) -> frozenset:
+    """Verses and hadiths of this entry already shown in the conversation (from the history text)."""
+    shown = " ".join(h["text"] for h in history if h["role"] == "assistant")
+    verses = {("q", ref) for ref in entry.get("verses", []) if f"[{quran.label(ref)}]" in shown}
+    hadiths = {("h", str(i)) for i in range(1, len(entry.get("hadiths", [])) + 1) if f"[حديث {i}]" in shown}
+    return frozenset(verses | hadiths)
+
+
 # Soft style checks: one rewrite, never a reason to drop a reply that passed G13 and G14.
 FLATTERY = ("سؤالك مهم", "سؤال مهم جدا", "يعكس", "ينم عن", "يدل على حرصك", "أقدر حرصك", "تفكيرك النقدي",
             "دليل على تفكيرك", "حرصك على")
@@ -339,16 +353,27 @@ STYLE_FEEDBACK = {
                 "about the question itself.",
     "repeated": "You repeated your previous reply. The person was not convinced: bring a different point from the "
                 "material, or say honestly that this approved answer has nothing more on that point.",
+    "opens_with_placeholder": "Do not open with a verse or hadith: start with one plain sentence about the question.",
+    "no_paragraphs": "Write short paragraphs separated by \\n.",
+    "register": "The person writes in Gulf dialect: answer in light, polite Gulf dialect like a respected friend.",
 }
+GULF_MARKERS = frozenset(arabic.normalize(w) for w in (
+    "وش", "ليش", "ابي", "أبي", "ابغى", "عطني", "قريت", "طيب", "يعني", "مو", "ولا لا", "شلون", "وشلون", "كذا", "زين"))
 
 
-def style_problem(reply: str, history: list[dict]) -> str | None:
+def style_problem(reply: str, history: list[dict], message: str = "") -> str | None:
     opening = arabic.normalize(reply[:140])
     if any(arabic.normalize(p) in opening for p in FLATTERY):
         return "flattery"
+    if "{{" in reply[:30]:
+        return "opens_with_placeholder"
     last = next((h["text"] for h in reversed(history) if h["role"] == "assistant"), "")
     if last and arabic.trigram_similarity(last, reply) >= 0.5:
         return "repeated"
+    if len(reply.split()) > 80 and "\n" not in reply.strip():
+        return "no_paragraphs"
+    if set(arabic.words(message)) & GULF_MARKERS and not set(arabic.words(reply)) & GULF_MARKERS:
+        return "register"
     return None
 
 
@@ -359,6 +384,8 @@ async def attach_chat(response: ChatResponse, message: str, req: ChatRequest, s:
     if any(b.get("key") == "notice_repeat" for b in response.blocks):
         return response
     entry = STATE.entries[response.entry_id]
+    if entry.get("chat") == "card_only":  # the reviewer chose the approved card alone for this answer
+        return response
     history = [h.model_dump() for h in req.history]
     reply, feedback, ok, styled, verified = None, None, False, False, 0
     for attempt in range(1, 4):  # at most three replies and two verifier calls
@@ -370,7 +397,7 @@ async def attach_chat(response: ChatResponse, message: str, req: ChatRequest, s:
                 break
             feedback = [g13_feedback(problem)]
             continue
-        style = None if styled or attempt == 3 else style_problem(reply, history)
+        style = None if styled or attempt == 3 else style_problem(reply, history, message)
         if style:
             styled = True
             log_event(event="g13", reason="style:" + style)
@@ -392,7 +419,8 @@ async def attach_chat(response: ChatResponse, message: str, req: ChatRequest, s:
             return _followup(entry, req, s)  # a push-back answered with the same card again would feel like a wall
         return response
     chat = {"type": "chat", "label": texts.text("badge_chat"), "hint": texts.text("badge_chat_hint"),
-            "toggle": texts.text("chat_card_toggle"), "segments": compose.chat_segments(reply, entry),
+            "toggle": texts.text("chat_card_toggle"),
+            "segments": compose.chat_segments(reply, entry, _quoted(history, entry)),
             "history_text": _history_text(reply, entry)}
     compose.final_check([chat], entry)
     response.blocks = [chat] + [b for b in response.blocks if b["type"] != "framing"]

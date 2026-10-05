@@ -143,7 +143,8 @@ def test_no_chat_in_degraded_mode(fakes):
 
 
 @pytest.mark.parametrize("bad, code", [
-    (GOOD.replace("وقال النبي ﷺ {{h:1}}.", "وقال النبي ﷺ {{h:1}} إن كل مولود يولد على الفطرة."), "verse_or_hadith_words"),
+    (GOOD.replace("وقال النبي ﷺ {{h:1}}.", "وقال النبي ﷺ {{h:1}} إن كل مولود يولد على الفطرة."), "restated"),
+    (GOOD.replace("وقال النبي ﷺ {{h:1}}.", "وقال النبي ﷺ {{h:1}}. فكل مولود يولد على الفطرة."), "verse_or_hadith_words"),
     (GOOD.replace("قال تعالى {{q:52:35}}", "فخلقوا من غير شيء كما يسأل القرآن {{q:52:35}}"), "verse_or_hadith_words"),
     (GOOD.replace("{{q:52:35}}", "{{q:52:35}} و{{q:52:36}}"), "placeholders"),
 ])
@@ -181,3 +182,32 @@ def test_a_push_back_whose_dialogue_is_dropped_gets_the_next_layer_not_the_same_
     req = ChatRequest(message="مو مقتنع، الكون صدفة", context=context)
     r = asyncio.run(pipeline.handle(req, SETTINGS))[1]
     assert r.layer != "summary" and r.blocks[0]["type"] != "chat"
+
+
+def test_level_c_ruling_sentences_must_name_their_holder():
+    entry = {**ENTRY, "level": "C", "body": ENTRY["body"] + " تذكر الموسوعة الفقهية في الدرر السنية اتفاق المذاهب على ذلك."}
+    own_voice = GOOD.replace("وش رأيك،", "وقد اتفقت المذاهب الأربعة على ذلك. وش رأيك،")
+    attributed = GOOD.replace("وش رأيك،", "وتذكر الموسوعة الفقهية في الدرر السنية اتفاق المذاهب على ذلك. وش رأيك،")
+    assert guards.reply_problem(own_voice, entry, NAMES) == "attribution"
+    assert guards.reply_problem(attributed, entry, NAMES) is None
+    assert guards.reply_problem(own_voice, {**entry, "level": "B"}, NAMES) is None  # only contested answers
+
+
+def test_card_only_entries_get_no_dialogue(fakes):
+    pipeline.STATE.entries["kawn-universe-x"] = {**pipeline.STATE.entries["kawn-universe-x"], "chat": "card_only"}
+    r = ask("هل الكون صدفة؟")
+    assert r.kind == "answer" and r.blocks[0]["type"] != "chat" and fakes["payloads"] == []
+
+
+def test_a_verse_shown_in_an_earlier_turn_points_back(fakes):
+    history = [{"role": "user", "text": "هل الكون صدفة؟"},
+               {"role": "assistant", "text": "العقل يقول إن ما له بداية لا بد له من موجد [الطور: 35] و[حديث 1]."}]
+    chat = ask("طيب وضح أكثر", history).blocks[0]
+    assert chat["type"] == "chat"
+    assert not any(seg["type"] in ("verse", "hadith") for seg in chat["segments"])
+    assert "[حديث 1]" in chat["history_text"]
+
+
+def test_restating_a_text_after_its_placeholder_is_caught():
+    bad = GOOD.replace("وقال النبي ﷺ {{h:1}}.", "وقال النبي ﷺ {{h:1}} أن كل إنسان يولد مستعداً للحق.")
+    assert guards.reply_problem(bad, ENTRY, NAMES) == "restated"

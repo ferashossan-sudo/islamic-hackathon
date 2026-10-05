@@ -258,7 +258,8 @@ def _decision_items(entries: list[dict]) -> tuple[list[dict], dict[str, list[dic
             item = {"id": f"{e['id']}#{n}", "entry": e["id"], "title": e["question"], "q": question.strip(),
                     "rec": rec.strip()}
             if owner == "lead":
-                same = next((x for x in lead if "OpenStax" in x["q"] and "OpenStax" in question), None)
+                same = next((x for x in lead if x["q"] == question.strip()
+                             or ("OpenStax" in x["q"] and "OpenStax" in question)), None)
                 if same:
                     same["also"].append(e["id"])
                 else:

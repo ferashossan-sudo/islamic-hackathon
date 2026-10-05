@@ -23,9 +23,12 @@ def segments(text: str) -> list[dict]:
 CHAT_PLACEHOLDER = re.compile(r"\{\{(q|h):([^}]+)\}\}")
 
 
-def chat_segments(text: str, entry: dict) -> list[dict]:
-    """The model's reply split into text, verse (from the mushaf) and hadith (from the entry) segments."""
-    out, pos, seen = [], 0, set()
+def chat_segments(text: str, entry: dict, quoted: frozenset = frozenset()) -> list[dict]:
+    """The model's reply split into text, verse (from the mushaf) and hadith (from the entry) segments.
+
+    `quoted` holds the (kind, value) placeholders already shown earlier in the conversation: they point back.
+    """
+    out, pos, seen = [], 0, set(quoted)
     hadiths = entry.get("hadiths", [])
     for match in CHAT_PLACEHOLDER.finditer(text):
         if match.start() > pos:

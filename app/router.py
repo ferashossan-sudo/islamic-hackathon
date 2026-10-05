@@ -29,7 +29,7 @@ class Decision(BaseModel):
     route: Literal["knowledge", "followup", "distress", "out_of_scope"]
     entry_id: str
     confidence: Literal["high", "medium", "low"]
-    oos_reason: Literal["none", "personal_fatwa", "fiqh", "hadith_check", "family_faith", "other_topic",
+    oos_reason: Literal["none", "personal_fatwa", "fiqh", "hadith_check", "family_faith", "judging_groups", "other_topic",
                         "manipulation"]
     evidence_request: Literal["none", "hadith", "verse"]
     framing: str
@@ -39,7 +39,7 @@ def _schema(upper: bool) -> dict:
     """JSON schema for the decision; Gemini takes the OpenAPI subset with upper-case types."""
     t = (lambda name: name.upper()) if upper else (lambda name: name)
     enums = {"route": ["knowledge", "followup", "distress", "out_of_scope"], "confidence": ["high", "medium", "low"],
-             "oos_reason": ["none", "personal_fatwa", "fiqh", "hadith_check", "family_faith", "other_topic",
+             "oos_reason": ["none", "personal_fatwa", "fiqh", "hadith_check", "family_faith", "judging_groups", "other_topic",
                            "manipulation"],
              "evidence_request": ["none", "hadith", "verse"]}
     props = {name: {"type": t("string"), "enum": values} for name, values in enums.items()}

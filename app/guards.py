@@ -128,6 +128,30 @@ KNOWN_NAMES = ("ابن تيمية", "ابن القيم", "الغزالي", "اب
                "البخاري", "صحيح مسلم", "الترمذي", "أبو داود", "النسائي", "ابن ماجه", "اللجنة الدائمة")
 
 
+CLAIM_WORDS = frozenset(arabic.normalize(w) for w in (
+    "اتفق", "اتفقت", "اتفقوا", "اتفاق", "إجماع", "أجمع", "أجمعوا", "الجمهور", "جمهور", "جائز", "جواز", "يجوز",
+    "يباح", "مباح", "حدا", "عقوبة", "عقوبته", "القتل", "يقتل"))
+# Words that point at a named holder in the material («تذكر الموسوعة...»، «في جواب الموقع»); never «العلماء» alone.
+HOLDER_WORDS = ("الموسوعة", "الموقع", "الفتوى", "جواب", "اللجنة الدائمة", "الشيخ")
+_SENTENCE = re.compile(r"[.!؟?\n]+")
+
+
+def _unattributed_claim(plain: str, entry: dict, material: str) -> bool:
+    material_norm = " " + " ".join(arabic.words(material)) + " "
+    holders = [entry["source"]["name"], *[t["mufassir"] for t in entry.get("tafsir", [])],
+               *[t["source"] for t in entry.get("tafsir", [])], *HOLDER_WORDS,
+               *[n for n in KNOWN_NAMES if f" {' '.join(arabic.words(n))} " in material_norm]]
+    holders = [" ".join(arabic.words(h)) for h in holders if h and arabic.words(h)]
+    for sentence in _SENTENCE.split(plain):
+        words = arabic.words(sentence)
+        if not words or not ({w for w in words} | {_core(w) for w in words}) & CLAIM_WORDS:
+            continue
+        joined = " " + " ".join(words) + " "
+        if not any(f" {h} " in joined or (" " + h) in joined for h in holders):
+            return True
+    return False
+
+
 def _numbers(text: str) -> set[str]:
     return set(_NUMBER.findall(arabic.normalize(text)))
 
@@ -140,6 +164,7 @@ def check_reply(reply: str, entry: dict, source_names: list[str]) -> bool:
 REASON_ONLY = re.compile(r"بالعقل|بدون دين|بلا دين|بدون (?:آيات|ايات|احاديث|أحاديث|نصوص)|من غير دين|"
                          r"لا تجيب.{0,25}(?:دين|آي|اي|حديث|احاديث|أحاديث)|منطق")
 MAX_PLACEHOLDERS, MAX_HADITHS = 2, 1
+_RESTATED = re.compile(r"\}\}[\s\)\]»،,:]*(?:أن|إن|أنه|إنه|أنها|إنها|بأن)\s")
 
 
 def reply_problem(reply: str, entry: dict, source_names: list[str], message: str = "") -> str | None:
@@ -166,6 +191,8 @@ def reply_problem(reply: str, entry: dict, source_names: list[str], message: str
         return "placeholders"
     if placeholders and message and REASON_ONLY.search(message):
         return "reason_only"
+    if _RESTATED.search(text):  # «{{h:1}} أن الله...» restates the text the placeholder already shows
+        return "restated"
     plain = _PLACEHOLDER.sub(" ", text)
     # The entry's own prose (without its hadith texts) may share words with a verse; the model may reuse those.
     prose = " ".join(str(x) for x in [
@@ -186,6 +213,9 @@ def reply_problem(reply: str, entry: dict, source_names: list[str], message: str
             continue  # the reviewed entry itself uses these words in its own text
         if gram in _mushaf_core_grams() or gram in hadith_grams:
             return "verse_or_hadith_words"
+    # Level C: a sentence about a ruling, penalty, permission or consensus names who holds it, from the material.
+    if entry.get("level") == "C" and _unattributed_claim(plain, entry, material):
+        return "attribution"
     # The Prophet ﷺ is mentioned only if the entry mentions him, and his words only through a hadith placeholder.
     prophet = ("رسول الله", "النبي", "ﷺ")
     if any(m in plain for m in prophet) and not (entry.get("hadiths") or any(m in material for m in prophet)):

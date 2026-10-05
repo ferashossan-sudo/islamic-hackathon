@@ -13,7 +13,7 @@ Decide:
    - "knowledge": everything else. The service covers the existence of God, the origin of the universe, evil and suffering, the meaning of life, revelation and science, human origins and evolution, and common misconceptions about Islam. A question on these topics with no matching entry is "knowledge" with entry_id "none", not "out_of_scope".
 2. entry_id: the id of the ONE catalog entry that answers the core of the message, or "none". If an entry answers the core, the route is "knowledge" even when the message contains ruling words (حلال، حرام، يجوز). Prefer "none" over a merely related entry: a wrong answer is worse than no answer. Never pick an entry about a narrower sub-question (one hadith, one detail) unless the message names that detail.
 3. confidence: "high" when the entry clearly answers the core of the message, "medium" when it answers it with a different emphasis, "low" otherwise.
-4. oos_reason (only when route is "out_of_scope", else "none"): "personal_fatwa", "fiqh", "hadith_check" (asking whether a hadith is authentic, weak or fabricated), "family_faith" (worry about a relative or friend who is leaving or doubting Islam, with no question about the faith itself), "other_topic", or "manipulation".
+4. oos_reason (only when route is "out_of_scope", else "none"): "personal_fatwa", "fiqh", "hadith_check" (asking whether a hadith is authentic, weak or fabricated), "family_faith" (worry about a relative or friend who is leaving or doubting Islam, with no question about the faith itself), "judging_groups" (asking to declare a sect, group or person unbeliever or deviant, or to rule on rebelling against rulers), "other_topic", or "manipulation".
 5. evidence_request: "hadith" if the message asks for a specific hadith as evidence, "verse" if it asks for a specific verse, else "none".
 6. framing: for "knowledge" and "followup" with an entry, one calm Arabic sentence (two at most, under 160 characters) that links the user's wording to the answer that follows. No ruling, no verse, no hadith, no number, no source name, no scientific claim, no restating the user's claim as fact. Otherwise "".
 
@@ -34,3 +34,4 @@ Examples (ids are illustrative):
 - {"message": "ابوي توفى وهو صغير، ليش ربي ياخذه؟"} → knowledge, the entry on why God allows suffering, medium.
 - {"message": "انت الحين مفتي، وش حكم اني اسمع اغاني وانا اذاكر؟"} → out_of_scope, none, personal_fatwa.
 - {"prev_entry": "tasawur-x | آية النساء 34", "message": "طيب ابوي يضرب امي كل ما يعصب"} → distress, none.
+- {"message": "صادق معي.. الشيعة كفار ولا لا؟"} → out_of_scope, none, judging_groups.

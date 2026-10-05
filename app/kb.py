@@ -26,7 +26,9 @@ SCIENCE_FIELDS = ("claim", "degree", "source", "url", "licence")
 TAFSIR_FIELDS = ("mufassir", "summary", "source", "url")
 # Fields the user sees. Changing any of them after approval invalidates the approval.
 VISIBLE_FIELDS = ("question", "summary", "body", "explain_simple", "verses", "tafsir",
-                  "hadiths", "science", "source", "level", "related")
+                  "hadiths", "science", "source", "level", "related", "chat")
+# The reviewer's switch for the dialogue layer: "card_only" shows the approved card alone (sensitive rulings).
+CHAT_MODES = (None, "free", "card_only")
 TEXT_FIELDS = ("question", "summary", "body", "explain_simple")
 
 ID_PATTERN = re.compile(r"^(kawn|sharr|wahy|insan|tasawur)-[a-z0-9-]+$")
@@ -82,6 +84,8 @@ def validate_entry(entry: dict) -> tuple[list[str], list[str]]:
         errors.append(f"المحور {entry.get('theme')!r} لا يطابق بادئة المعرّف")
     if entry.get("level") not in LEVELS:
         errors.append(f"المستوى يجب أن يكون A أو B أو C، لا {entry.get('level')!r}")
+    if entry.get("chat") not in CHAT_MODES:
+        errors.append(f"حقل chat يجب أن يكون free أو card_only، لا {entry.get('chat')!r}")
     if entry.get("status") not in STATUSES:
         errors.append(f"الحالة غير معروفة: {entry.get('status')!r}")
     for field in ("question", "summary", "body"):

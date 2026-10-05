@@ -411,8 +411,8 @@
       if (response.ok) {
         sentMessages.push(normalized);
         const chat = (data.blocks || []).find((b) => b.type === "chat");
-        history.push({ role: "user", text: text.slice(0, 600) });
-        if (chat) history.push({ role: "assistant", text: chat.history_text.slice(0, 600) });
+        history.push({ role: "user", text: text.slice(0, 1200) });
+        if (chat) history.push({ role: "assistant", text: chat.history_text.slice(0, 1200) });
         history = history.slice(-4);
         addUserMessage(text);
         input.value = "";

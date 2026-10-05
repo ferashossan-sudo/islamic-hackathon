@@ -18,7 +18,7 @@ PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "converse_v1.md"
 RULES = PROMPT_PATH.read_text(encoding="utf-8")
 PROMPT_VERSION = "converse_v1:" + hashlib.sha256(RULES.encode("utf-8")).hexdigest()[:12]
 MAX_HISTORY = 4
-MAX_HISTORY_CHARS = 600
+MAX_HISTORY_CHARS = 1200  # a whole previous reply, so the model sees what it already said
 
 
 class Reply(BaseModel):
