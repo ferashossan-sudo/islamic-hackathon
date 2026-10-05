@@ -306,6 +306,39 @@ main {
   margin-block: 8px;
 }
 
+/* «بالعقل والعلم»: numbered steps, then objections folded under their question */
+.reasoning-steps {
+  margin: 0;
+  padding-inline-start: 22px;
+}
+
+.reasoning-step { margin-block-end: 8px; }
+.reasoning-step::marker { color: var(--accent); font-weight: 600; }
+.reasoning-step p { margin: 0; }
+
+.block-subtitle {
+  margin: 12px 0 4px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.objection {
+  border-inline-start: 3px solid var(--border);
+  padding-inline-start: 10px;
+  margin-block: 6px;
+}
+
+.objection summary {
+  min-block-size: 44px;
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.objection[open] { border-color: var(--accent); }
+.objection p { margin: 0 0 6px; }
+
 .degree-fact { border-color: var(--accent); color: var(--accent); }
 .degree-hypothesis { border-style: dashed; }
 

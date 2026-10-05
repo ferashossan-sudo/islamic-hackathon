@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 from urllib.parse import urlparse
 
-from app import quran
+from app import arabic, quran
 
 ROOT = Path(__file__).resolve().parent.parent
 KB_PATH = ROOT / "content" / "kb.json"
@@ -25,6 +25,8 @@ HADITH_FIELDS = ("text", "source", "number", "grade", "grader", "url")
 SCIENCE_FIELDS = ("claim", "degree", "source", "url", "licence")
 TAFSIR_FIELDS = ("mufassir", "summary", "source", "url")
 # Fields the user sees. Changing any of them after approval invalidates the approval.
+# The «بالعقل والعلم» layer ("reasoning") has its own approval (review.reasoning_hash), so a reviewed answer can go
+# live before its reasoning layer is reviewed; an unreviewed or changed layer is never served (served_copy).
 VISIBLE_FIELDS = ("question", "summary", "body", "explain_simple", "verses", "tafsir",
                   "hadiths", "science", "source", "level", "related", "chat", "more_sources")
 # Further pages the answer cites by name (a fatwa, an answer number, «بينات»): shown with links under the answer.
@@ -40,6 +42,22 @@ VERSE_PLACEHOLDER = re.compile(r"\{\{q:([^}]+)\}\}")
 ORNATE_BRACKETS = re.compile("[﴾﴿]")
 WARN_PHRASES = ("الإعجاز", "سبق القرآن", "أثبت العلم")
 
+# «بالعقل والعلم»: the answer's own argument, from premises a skeptic already accepts to the conclusion, and the
+# objections a thoughtful skeptic raises after hearing it. It is the non-scriptural layer: no verse or hadith in it.
+REASONING_KEYS = ("steps", "objections")
+REASONING_BASES = ("aql", "ilm")
+STEP_FIELDS = ("text", "basis", "source", "url")
+OBJECTION_FIELDS = ("objection", "response", "source", "url")
+REASONING_OPTIONAL = ("locator",)
+REASONING_STEPS = (2, 5)
+REASONING_OBJECTIONS = (0, 4)
+# Suggested lengths: the reviewer is warned, nothing is cut.
+REASONING_LIMITS = {"text": 280, "objection": 200, "response": 450}
+ANY_PLACEHOLDER = re.compile(r"\{\{|\}\}")
+_HARAKAT = re.compile("[\u0610-\u061a\u064b-\u065f\u0670\u0640]")
+# «رواه» and its attached forms, not «الرواة» (narrators, with ta marbuta).
+NARRATION_WORD = re.compile("(?<![\u0621-\u064a])[وف]?رواه(?:ا|م|ما)?(?![\u0621-\u064a])")
+
 
 class KBError(Exception):
     pass
@@ -54,6 +72,21 @@ def approved_hash(entry: dict) -> str:
     visible = {field: entry.get(field) for field in VISIBLE_FIELDS}
     canonical = json.dumps(visible, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def reasoning_hash(entry: dict) -> str | None:
+    reasoning = entry.get("reasoning")
+    if reasoning is None:
+        return None
+    canonical = json.dumps(reasoning, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def served_copy(entry: dict) -> dict:
+    """The entry as it may be served: its reasoning layer only if the reviewer approved exactly this layer."""
+    if entry.get("reasoning") is None or (entry.get("review") or {}).get("reasoning_hash") == reasoning_hash(entry):
+        return entry
+    return {k: v for k, v in entry.items() if k != "reasoning"}
 
 
 def _domain_ok(url: str, domains: list[str]) -> bool:
@@ -74,6 +107,107 @@ def normalize_refs(entry: dict) -> dict:
             entry[field] = VERSE_PLACEHOLDER.sub(lambda m: "{{q:" + numeric(m.group(1)) + "}}", entry[field])
     entry["verses"] = [numeric(ref) for ref in entry.get("verses", [])]
     return entry
+
+
+def _scripture_in(text: str) -> str | None:
+    """Why this reasoning text carries scripture (a placeholder, ornate brackets, «رواه»), or None."""
+    found = [why for why, hit in (("مرجع آية أو حديث {{…}}", ANY_PLACEHOLDER.search(text)),
+                                  ("قوسا الآية ﴿﴾", ORNATE_BRACKETS.search(text)),
+                                  ("«رواه»", NARRATION_WORD.search(_HARAKAT.sub("", text)))) if hit]
+    return "، و".join(found) or None
+
+
+def _quoted_words(text: str, hadith_texts: list[str]) -> bool:
+    """Four consecutive words of a verse or of one of the entry's hadiths (compared as G13 compares them)."""
+    from app import guards  # lazy: the mushaf grams are built only when an entry has a reasoning layer
+
+    mushaf = guards._mushaf_core_grams()
+    hadith_grams = set()
+    for h in hadith_texts:
+        hadith_grams |= guards._core_grams(arabic.words(h))
+    return any(g in mushaf or g in hadith_grams for g in guards._core_grams(arabic.words(text)))
+
+
+def reasoning_texts(entry: dict) -> list[str]:
+    """Every text of the reasoning layer the person may read: step texts, objections and responses."""
+    reasoning = entry.get("reasoning") or {}
+    if not isinstance(reasoning, dict):
+        return []
+    out = []
+    for step in reasoning.get("steps") or []:
+        if isinstance(step, dict):
+            out.append(str(step.get("text") or ""))
+    for item in reasoning.get("objections") or []:
+        if isinstance(item, dict):
+            out += [str(item.get("objection") or ""), str(item.get("response") or "")]
+    return [t for t in out if t]
+
+
+def _validate_reasoning(entry: dict, domains: list[str], errors: list[str], warnings: list[str]) -> None:
+    """The «بالعقل والعلم» layer: optional; when present, every rule below applies."""
+    reasoning = entry["reasoning"]
+    if not isinstance(reasoning, dict):
+        errors.append("العقل والعلم: حقل reasoning يجب أن يكون كائناً فيه steps و objections")
+        return
+    unknown = sorted(set(reasoning) - set(REASONING_KEYS))
+    if unknown:
+        errors.append(f"العقل والعلم: مفاتيح غير معروفة في reasoning {unknown}")
+    steps = reasoning.get("steps")
+    objections = reasoning.get("objections", [])
+    if not isinstance(steps, list) or not REASONING_STEPS[0] <= len(steps) <= REASONING_STEPS[1]:
+        errors.append(f"العقل والعلم: الخطوات (steps) قائمة من {REASONING_STEPS[0]} إلى {REASONING_STEPS[1]}")
+        steps = steps if isinstance(steps, list) else []
+    if not isinstance(objections, list) or not REASONING_OBJECTIONS[0] <= len(objections) <= REASONING_OBJECTIONS[1]:
+        errors.append(f"العقل والعلم: الاعتراضات (objections) قائمة من {REASONING_OBJECTIONS[0]} "
+                      f"إلى {REASONING_OBJECTIONS[1]}")
+        objections = objections if isinstance(objections, list) else []
+    science_urls = {s.get("url") for s in entry.get("science", []) if isinstance(s, dict)}
+    hadith_texts = [str(h.get("text") or "") for h in entry.get("hadiths", []) if isinstance(h, dict)]
+
+    def check_item(label: str, item, required: tuple[str, ...]) -> bool:
+        if not isinstance(item, dict):
+            errors.append(f"{label}: يجب أن يكون كائناً")
+            return False
+        missing = [f for f in required if not isinstance(item.get(f), str) or not item[f].strip()]
+        extra = sorted(set(item) - set(required) - set(REASONING_OPTIONAL))
+        if missing:
+            errors.append(f"{label}: حقول ناقصة {missing}")
+        if extra:
+            errors.append(f"{label}: حقول غير معروفة {extra}")
+        if "locator" in item and not isinstance(item["locator"], str):
+            errors.append(f"{label}: الموضع (locator) يجب أن يكون نصاً")
+        if missing:
+            return False
+        if not _domain_ok(item["url"], domains):
+            errors.append(f"{label}: رابط خارج القائمة المعتمدة: {item['url']}")
+        for field, value in item.items():
+            if not isinstance(value, str):
+                continue
+            why = _scripture_in(value)
+            if why:
+                errors.append(f"{label}: طبقة العقل والعلم بلا نصوص شرعية، وفي {field} {why}")
+            if field in REASONING_LIMITS and len(value) > REASONING_LIMITS[field]:
+                warnings.append(f"{label}: {field} {len(value)} حرفاً، والحد المقترح {REASONING_LIMITS[field]}")
+            if field in REASONING_LIMITS:
+                for phrase in WARN_PHRASES:
+                    if phrase in value:
+                        warnings.append(f"{label}: عبارة تحتاج نظراً: «{phrase}»")
+                if _quoted_words(value, hadith_texts):
+                    warnings.append(f"{label}: أربع كلمات متتالية من آية أو حديث في {field}، "
+                                    f"والمطلوب عرض الفكرة بلا ألفاظ النص")
+        return True
+
+    for i, step in enumerate(steps, 1):
+        label = f"العقل والعلم، الخطوة {i}"
+        if not check_item(label, step, STEP_FIELDS):
+            continue
+        if step["basis"] not in REASONING_BASES:
+            errors.append(f"{label}: الأساس (basis) يجب أن يكون aql أو ilm، لا {step['basis']!r}")
+        elif step["basis"] == "ilm" and step["url"] not in science_urls:
+            errors.append(f"{label}: معلومة علمية رابطها ليس من المعلومات العلمية المسجلة في المدخل "
+                          f"(تُسجل أولاً في science بدرجتها): {step['url']}")
+    for i, item in enumerate(objections, 1):
+        check_item(f"العقل والعلم، الاعتراض {i}", item, OBJECTION_FIELDS)
 
 
 def validate_entry(entry: dict) -> tuple[list[str], list[str]]:
@@ -159,6 +293,9 @@ def validate_entry(entry: dict) -> tuple[list[str], list[str]]:
         if not _domain_ok(item["url"], sources["domains"]):
             errors.append(f"المعلومة العلمية {i}: رابط خارج القائمة المعتمدة: {item['url']}")
 
+    if entry.get("reasoning") is not None:
+        _validate_reasoning(entry, sources["domains"], errors, warnings)
+
     if entry.get("status") == "approved":
         review = entry.get("review") or {}
         if not review.get("reviewer"):
@@ -214,13 +351,15 @@ def check_all(entries: list[dict]) -> dict[str, tuple[list[str], list[str]]]:
 
 def approved_only(entries: list[dict]) -> list[dict]:
     """G1: only approved entries whose approval hash still matches their visible content."""
-    return [e for e in entries if e.get("status") == "approved"
+    return [served_copy(e) for e in entries if e.get("status") == "approved"
             and (e.get("review") or {}).get("approved_hash") == approved_hash(e)]
 
 
 def load_approved(path: Path = KB_PATH) -> list[dict]:
-    """Approved entries for serving. Raises KBError if any approved entry breaks a blocking rule."""
-    entries = read_all(path)
+    """Approved entries for serving. Raises KBError if any approved entry breaks a blocking rule.
+
+    A reasoning layer still awaiting review is set aside first: it can neither block nor reach the answer."""
+    entries = [served_copy(e) for e in read_all(path)]
     problems = []
     for entry_id, (errors, _) in check_all(entries).items():
         entry = next(e for e in entries if e.get("id") == entry_id)
@@ -234,7 +373,8 @@ def load_approved(path: Path = KB_PATH) -> list[dict]:
 def kb_hash(entries: list[dict]) -> str | None:
     if not entries:
         return None
-    joined = "".join(e["review"]["approved_hash"] for e in sorted(entries, key=lambda e: e["id"]))
+    joined = "".join(e["review"]["approved_hash"] + (reasoning_hash(e) or "")
+                     for e in sorted(entries, key=lambda e: e["id"]))
     return "sha256:" + hashlib.sha256(joined.encode("utf-8")).hexdigest()[:16]
 
 
@@ -247,6 +387,6 @@ def preview_drafts(path: Path = KB_PATH) -> list[dict]:
         e = json.loads(json.dumps(entry))
         e["status"] = "approved"
         e["review"] = {"reviewer": "معاينة مسودة", "reviewed_at": "2026-10-04", "note": "",
-                       "approved_hash": approved_hash(e)}
+                       "approved_hash": approved_hash(e), "reasoning_hash": reasoning_hash(e)}
         out.append(e)
     return out

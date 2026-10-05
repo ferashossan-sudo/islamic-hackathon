@@ -6,10 +6,13 @@
     uv run python scripts/kb_tool.py status ID needs_edit --note "..."
     uv run python scripts/kb_tool.py digest -o private/digest.html [--all]
     uv run python scripts/kb_tool.py decisions private/drafts/batch2 private/drafts/batch3 -o private/decisions.html
+    uv run python scripts/kb_tool.py reasoning-digest --ids ID,ID --out private/reasoning.html   # or --all-with-reasoning
+    uv run python scripts/kb_tool.py merge-reasoning staging/*.json   # files of {"id": ..., "reasoning": {...}}
 
 Source excerpts for the digest live in private/excerpts/<id>.txt (never committed).
 """
 import argparse
+import copy
 import json
 import sys
 from datetime import date
@@ -18,10 +21,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app import kb, quran  # noqa: E402
+from app import kb, quran, texts  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 EXCERPTS = ROOT / "private" / "excerpts"
+DRAFT_DIRS = ROOT / "private" / "drafts"  # team-only drafts awaiting review (as in eval/run_eval.py)
 REVIEWER = "المراجع الشرعي للفريق"
 
 
@@ -69,9 +73,18 @@ def cmd_approve(args) -> int:
         if entry is None:
             print(f"✗ غير موجود: {entry_id}")
             return 1
+        before = entry.get("review") or {}
         entry["status"] = "approved"
         entry["review"] = {"reviewer": REVIEWER, "reviewed_at": args.date, "note": args.note or "",
                            "approved_hash": kb.approved_hash(entry)}
+        # The «بالعقل والعلم» layer keeps its own approval: approved here only with --with-reasoning,
+        # and an earlier approval of it survives while the layer is unchanged.
+        if args.with_reasoning and entry.get("reasoning") is not None:
+            entry["review"]["reasoning_hash"] = kb.reasoning_hash(entry)
+            entry["review"]["reasoning_reviewed_at"] = args.date
+        elif before.get("reasoning_hash") and before.get("reasoning_hash") == kb.reasoning_hash(entry):
+            entry["review"]["reasoning_hash"] = before["reasoning_hash"]
+            entry["review"]["reasoning_reviewed_at"] = before.get("reasoning_reviewed_at", "")
         errors, _ = kb.validate_entry(entry)
         if errors:
             print(f"✗ {entry_id} لا يُعتمد قبل إصلاح: " + "؛ ".join(errors))
@@ -79,6 +92,32 @@ def cmd_approve(args) -> int:
         print(f"✓ اعتُمد {entry_id}")
     kb.write_all(entries)
     return 0
+
+
+def approve_reasoning(ids: list[str], on: str, kb_path: Path) -> int:
+    """The reviewer approved the «بالعقل والعلم» layer of these entries (in content/kb.json) as it stands now."""
+    entries = kb.read_all(kb_path)
+    by_id = {e["id"]: e for e in entries}
+    for entry_id in ids:
+        entry = by_id.get(entry_id)
+        if entry is None or entry.get("reasoning") is None:
+            print(f"✗ {entry_id}: غير موجود في kb.json أو بلا طبقة «بالعقل والعلم»")
+            return 1
+        errors = [m for m in kb.validate_entry(kb.normalize_refs(copy.deepcopy(entry)))[0]
+                  if m.startswith("العقل والعلم")]
+        if errors:
+            print(f"✗ {entry_id} لا تُعتمد طبقته قبل إصلاح: " + "؛ ".join(errors))
+            return 1
+        review = entry.setdefault("review", {})
+        review["reasoning_hash"] = kb.reasoning_hash(entry)
+        review["reasoning_reviewed_at"] = on
+        print(f"✓ اعتُمدت طبقة العقل والعلم: {entry_id}")
+    kb.write_all(entries, kb_path)
+    return 0
+
+
+def cmd_approve_reasoning(args) -> int:
+    return approve_reasoning(args.ids, args.date, kb.KB_PATH)
 
 
 def cmd_status(args) -> int:
@@ -110,6 +149,40 @@ def _paras(text: str) -> str:
     return "".join(f"<p>{escape(line)}</p>" for line in _expand(text).splitlines() if line.strip())
 
 
+REASONING_HEADING = "بالعقل والعلم (جديد)"
+
+
+def _source_link(item: dict) -> str:
+    name = " ".join(x for x in (str(item.get("source") or ""), str(item.get("locator") or "")) if x)
+    return f"{escape(name)} · <a href='{escape(str(item.get('url') or ''))}'>الرابط</a>"
+
+
+def _reasoning_html(entry: dict) -> str:
+    """The «بالعقل والعلم» layer for the sharia reviewer: the steps in order, then the objections with answers."""
+    reasoning = entry.get("reasoning")
+    if not isinstance(reasoning, dict):
+        return ""
+    steps = [s for s in reasoning.get("steps") or [] if isinstance(s, dict)]
+    objections = [o for o in reasoning.get("objections") or [] if isinstance(o, dict)]
+    labels = texts.pairs("ui_labels")
+    parts = [f"<div class='reasoning'><h3>{escape(REASONING_HEADING)}</h3>",
+             "<p class='muted'>سلسلة استدلال بالعقل والعلم، بلا آيات ولا أحاديث، تُعرض تحت الإجابة ويبني عليها "
+             "المساعد حواره ونقاشه.</p><ol>"]
+    for s in steps:
+        basis = labels.get(f"basis_{s.get('basis')}", f"أساس غير معروف: {s.get('basis')}")
+        parts.append(f"<li><p>{escape(str(s.get('text') or ''))}</p>"
+                     f"<p class='muted'>{escape(basis)} · {_source_link(s)}</p></li>")
+    parts.append("</ol>")
+    if objections:
+        parts.append(f"<h4>{escape(labels['objections_title'])}</h4>")
+        for o in objections:
+            parts.append(f"<div class='objection'><p><b>الاعتراض: {escape(str(o.get('objection') or ''))}</b></p>"
+                         f"<p>الجواب: {escape(str(o.get('response') or ''))}</p>"
+                         f"<p class='muted'>{_source_link(o)}</p></div>")
+    parts.append("</div>")
+    return "".join(parts)
+
+
 def _entry_html(entry: dict) -> str:
     errors, warnings = kb.validate_entry(entry)
     parts = [f"<section class='entry'><h2>{escape(entry['id'])}</h2>",
@@ -138,6 +211,7 @@ def _entry_html(entry: dict) -> str:
         parts.append(f"<h3>معلومة علمية ({escape(DEGREE_LABELS.get(item.get('degree'), '?'))})</h3>"
                      f"<p>{escape(item.get('claim', ''))}</p><p class='muted'>{escape(item.get('source', ''))} · "
                      f"<a href='{escape(item.get('url', ''))}'>الرابط</a></p>")
+    parts.append(_reasoning_html(entry))
     source = entry.get("source") or {}
     parts.append(f"<h3>المصدر</h3><p>{escape(source.get('name', ''))} {escape(source.get('locator', ''))} · "
                  f"<a href='{escape(source.get('url', ''))}'>الرابط</a></p>")
@@ -160,6 +234,9 @@ h1{font-size:1.3rem}h2{font-size:1.15rem;margin:0 0 4px;direction:ltr;text-align
 .entry{background:#fff;border:1px solid #d9d5cb;border-radius:12px;padding:12px 16px;margin-bottom:20px}
 .meta,.muted{color:#55605b;font-size:.9rem}.verse{font-size:1.15rem}.excerpt{background:#eef3f0;border-radius:8px;padding:8px 12px}
 .warn{background:#fff6dc;border-radius:8px;padding:8px 12px;margin-top:12px}.reply{margin-top:12px;font-size:.9rem;color:#55605b}
+.reasoning{border:2px dashed #1f5f4a;border-radius:10px;padding:4px 14px;margin-top:16px;background:#f4faf7}
+.reasoning h4{margin:12px 0 4px;font-size:.95rem}.reasoning ol{padding-inline-start:22px}
+.objection{border-inline-start:3px solid #d9d5cb;padding-inline-start:10px;margin:8px 0}
 """
 
 
@@ -186,6 +263,160 @@ def cmd_digest(args) -> int:
     out.write_text(html, encoding="utf-8")
     print(f"{out} ({len(entries)} إجابة)")
     return 0
+
+
+# --- «بالعقل والعلم»: a short review addendum, and merging staged reasoning into the entries ---
+
+def _load_file(path: Path) -> tuple[list[dict], dict]:
+    """A draft file's entries and how it is written (line endings, final newline), so it is written back alike."""
+    with open(path, encoding="utf-8", newline="") as f:
+        raw = f.read()
+    return json.loads(raw), {"crlf": "\r\n" in raw, "final_newline": raw.endswith("\n")}
+
+
+def _write_file(path: Path, entries: list[dict], style: dict) -> None:
+    text = json.dumps(entries, ensure_ascii=False, indent=2) + ("\n" if style["final_newline"] else "")
+    if style["crlf"]:
+        text = text.replace("\n", "\r\n")
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(text)
+
+
+def _errors(entry: dict) -> list[str]:
+    """Blocking errors of an entry checked as eval/run_eval.py load_drafts checks it (on a normalized copy)."""
+    try:
+        e = kb.normalize_refs(copy.deepcopy(entry))
+    except ValueError as exc:
+        return [str(exc)]
+    return kb.validate_entry(e)[0]
+
+
+def _copies(kb_path: Path, drafts_dir: Path) -> list[tuple[Path, int, dict]]:
+    """Every copy of every entry, in the order load_drafts reads them: content/kb.json, then the draft files."""
+    out = [(kb_path, i, e) for i, e in enumerate(kb.read_all(kb_path))]
+    for path in sorted(drafts_dir.glob("*/*.json")):
+        out += [(path, i, e) for i, e in enumerate(_load_file(path)[0])]
+    return out
+
+
+def _locate(entry_id: str, kb_path: Path, drafts_dir: Path) -> tuple[Path | None, int, list[str]]:
+    """The copy that load_drafts serves: the last valid one (content/kb.json for batch 1, else the draft files).
+
+    Validity ignores the copy's current reasoning, which is the part being replaced. (None, -1, problems) if none."""
+    problems = []
+    for path, index, e in reversed(_copies(kb_path, drafts_dir)):
+        if e.get("id") != entry_id:
+            continue
+        errors = ["rejected"] if e.get("status") == "rejected" else _errors(
+            {k: v for k, v in e.items() if k != "reasoning"})
+        if not errors:
+            return path, index, []
+        problems.append(f"{_show(path)}: {errors[0]}")
+    return None, -1, problems or ["غير موجود في content/kb.json ولا في private/drafts"]
+
+
+def _show(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
+def merge_reasoning(files: list[str], kb_path: Path, drafts_dir: Path) -> int:
+    """Write each staged {"id", "reasoning"} into its entry; an entry that then fails validation is not written."""
+    failed = 0
+    for name in files:
+        try:
+            data = json.loads(Path(name).read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            print(f"✗ {name}: لا يُقرأ ملفاً بصيغة JSON: {exc}")
+            failed += 1
+            continue
+        for item in data if isinstance(data, list) else [data]:
+            if (not isinstance(item, dict) or not isinstance(item.get("id"), str) or "reasoning" not in item
+                    or set(item) - {"id", "reasoning"}):
+                print(f'✗ {name}: الصيغة المطلوبة {{"id": "...", "reasoning": {{...}}}} دون حقول أخرى')
+                failed += 1
+                continue
+            entry_id = item["id"]
+            path, index, problems = _locate(entry_id, kb_path, drafts_dir)
+            if path is None:
+                print(f"✗ {entry_id}: لا نسخة صالحة يُدمج فيها: " + "؛ ".join(problems))
+                failed += 1
+                continue
+            is_kb = path == kb_path
+            entries, style = (kb.read_all(kb_path), None) if is_kb else _load_file(path)
+            updated = {**entries[index], "reasoning": item["reasoning"]}
+            errors = _errors(updated)
+            if errors:
+                print(f"✗ {entry_id}: لم يُكتب، لأن المدخل بعد الدمج لا يجتاز التحقق ({_show(path)}):")
+                for e in errors:
+                    print(f"    خطأ: {e}")
+                failed += 1
+                continue
+            entries[index] = updated
+            if is_kb:
+                kb.write_all(entries, kb_path)
+            else:
+                _write_file(path, entries, style)
+            print(f"✓ {entry_id} ← {_show(path)}")
+            for w in kb.validate_entry(kb.normalize_refs(copy.deepcopy(updated)))[1]:
+                print(f"    تنبيه: {w}")
+    return 1 if failed else 0
+
+
+def cmd_merge_reasoning(args) -> int:
+    return merge_reasoning(args.files, kb.KB_PATH, DRAFT_DIRS)
+
+
+def _reasoning_section(entry: dict) -> str:
+    e = kb.normalize_refs(copy.deepcopy(entry))
+    errors, warnings = kb.validate_entry(e)
+    own = [m for m in errors + warnings if m.startswith("العقل والعلم")]
+    parts = [f"<section class='entry'><h2>{escape(entry['id'])}</h2>",
+             f"<p class='meta'>المستوى {escape(LEVEL_LABELS.get(entry.get('level'), '?'))} · "
+             f"الحالة {escape(entry.get('status', ''))}</p>",
+             f"<h3>السؤال</h3><p><b>{escape(_expand(entry.get('question', '')))}</b></p>",
+             _reasoning_html(entry) or "<p class='muted'>لا طبقة «بالعقل والعلم» لهذا المدخل بعد.</p>"]
+    if own:
+        parts.append("<div class='warn'>" + "".join(f"<p>⚠ {escape(m)}</p>" for m in own) + "</div>")
+    parts.append(f"<p class='reply'>للرد: «{escape(entry['id'])}: العقل والعلم معتمد» أو "
+                 f"«{escape(entry['id'])}: العقل والعلم يحتاج تعديل، ...»</p></section>")
+    return "\n".join(parts)
+
+
+def reasoning_digest(ids: list[str] | None, out: Path, title: str, kb_path: Path, drafts_dir: Path) -> int:
+    """Only the reasoning layer of the given entries (or of every entry that has one), each with its question."""
+    explicit = ids is not None
+    if not explicit:
+        ids = sorted({e["id"] for _, _, e in _copies(kb_path, drafts_dir) if e.get("id") and e.get("reasoning")})
+    sections, missing = [], 0
+    for entry_id in ids:
+        path, index, problems = _locate(entry_id, kb_path, drafts_dir)
+        if path is None:
+            print(f"✗ {entry_id}: " + "؛ ".join(problems))
+            missing += 1
+            continue
+        entry = (kb.read_all(kb_path) if path == kb_path else _load_file(path)[0])[index]
+        if not explicit and entry.get("reasoning") is None:
+            continue  # an earlier copy had a reasoning layer; the copy that is served has none
+        sections.append(_reasoning_section(entry))
+    html = (f"<!doctype html><html lang='ar' dir='rtl'><head><meta charset='utf-8'>"
+            f"<meta name='viewport' content='width=device-width, initial-scale=1'><title>{escape(title)}</title>"
+            f"<style>{DIGEST_CSS}</style></head><body><h1>{escape(title)} ({len(sections)})</h1>"
+            f"<p class='muted'>ملحق قصير: طبقة «بالعقل والعلم» وحدها. خطوات استدلال بالعقل والعلم بلا آيات ولا أحاديث، "
+            f"ثم اعتراضات شائعة وجوابها، ولكل منها مصدره. يبني عليها المساعد حواره حين يطلب السائل الإقناع "
+            f"بالعقل أو يعترض. المطلوب لكل إجابة: معتمد، أو يحتاج تعديل مع الملاحظة.</p>"
+            f"{''.join(sections) or '<p>لا مداخل فيها هذه الطبقة.</p>'}</body></html>")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(html, encoding="utf-8")
+    print(f"{out} ({len(sections)} إجابة)")
+    return 1 if missing else 0
+
+
+def cmd_reasoning_digest(args) -> int:
+    ids = None if args.all_with_reasoning else [i.strip() for i in args.ids.split(",") if i.strip()]
+    return reasoning_digest(ids, Path(args.out), args.title, kb.KB_PATH, DRAFT_DIRS)
 
 
 OWNERS = {"[لقائد الفريق]": "lead", "[للمراجع الشرعي]": "sharia"}
@@ -319,6 +550,10 @@ def main() -> int:
     p.add_argument("ids", nargs="+")
     p.add_argument("--date", default=date.today().isoformat())
     p.add_argument("--note")
+    p.add_argument("--with-reasoning", action="store_true", help="approve the «بالعقل والعلم» layer too")
+    p = sub.add_parser("approve-reasoning", help="approve only the «بالعقل والعلم» layer of entries in kb.json")
+    p.add_argument("ids", nargs="+")
+    p.add_argument("--date", default=date.today().isoformat())
     p = sub.add_parser("status")
     p.add_argument("id")
     p.add_argument("status", choices=["draft", "needs_edit", "rejected"])
@@ -333,9 +568,18 @@ def main() -> int:
     p.add_argument("source", nargs="+", help="folders of draft JSON files")
     p.add_argument("-o", "--output", default=str(ROOT / "private" / "decisions.html"))
     p.add_argument("--title", default="ورقة القرارات")
+    p = sub.add_parser("reasoning-digest", help="only the «بالعقل والعلم» layer of some entries, for a quick review")
+    which = p.add_mutually_exclusive_group(required=True)
+    which.add_argument("--ids", help="comma-separated entry ids")
+    which.add_argument("--all-with-reasoning", action="store_true")
+    p.add_argument("-o", "--out", required=True)
+    p.add_argument("--title", default="مراجعة طبقة «بالعقل والعلم»")
+    p = sub.add_parser("merge-reasoning", help='write staged {"id", "reasoning"} files into the entries')
+    p.add_argument("files", nargs="+")
     args = parser.parse_args()
-    return {"check": cmd_check, "add": cmd_add, "approve": cmd_approve,
-            "status": cmd_status, "digest": cmd_digest, "decisions": cmd_decisions}[args.cmd](args)
+    return {"check": cmd_check, "add": cmd_add, "approve": cmd_approve, "approve-reasoning": cmd_approve_reasoning,
+            "status": cmd_status, "digest": cmd_digest, "decisions": cmd_decisions,
+            "reasoning-digest": cmd_reasoning_digest, "merge-reasoning": cmd_merge_reasoning}[args.cmd](args)
 
 
 if __name__ == "__main__":

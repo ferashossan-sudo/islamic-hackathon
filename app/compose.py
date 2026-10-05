@@ -82,6 +82,8 @@ def answer_blocks(entry: dict, approved: dict[str, dict], layer: str = "summary"
         "body": segments(entry["body"]),
         "open": layer,
     })
+    if entry.get("reasoning"):
+        blocks.append(reasoning_block(entry["reasoning"]))
     tafsir = [{"mufassir": t["mufassir"], "summary": t["summary"], "url": t["url"],
                "label": _fill(texts.text("tafsir_label"), المفسر=t["mufassir"], المصدر=t["source"])}
               for t in entry.get("tafsir", [])]
@@ -112,6 +114,37 @@ def answer_blocks(entry: dict, approved: dict[str, dict], layer: str = "summary"
     return blocks
 
 
+def reasoning_block(reasoning: dict) -> dict:
+    """«بالعقل والعلم»: the reviewed chain of reasoning and the common objections with their answers."""
+    labels = texts.pairs("ui_labels")
+    return {
+        "type": "reasoning",
+        "title": labels["reasoning_title"],
+        "steps": [{"text": s["text"], "basis_label": labels["basis_" + s["basis"]], "source": s["source"],
+                   "locator": s.get("locator", ""), "url": s["url"]} for s in reasoning["steps"]],
+        "objections_title": labels["objections_title"],
+        "objections": [{"objection": o["objection"], "response": o["response"], "source": o["source"],
+                        "locator": o.get("locator", ""), "url": o["url"]} for o in reasoning.get("objections", [])],
+    }
+
+
+def _check_reasoning(block: dict, entry: dict) -> None:
+    """The reasoning block shows the entry's reviewed reasoning exactly: same texts, sources and links, nothing more."""
+    reasoning = entry.get("reasoning")
+    assert reasoning, "reasoning block without reasoning in the entry"
+    labels = texts.pairs("ui_labels")
+    assert set(block) == {"type", "title", "steps", "objections_title", "objections"}, "reasoning keys"
+    assert block["title"] == labels["reasoning_title"] and block["objections_title"] == labels["objections_title"]
+    shown = [(s["text"], s["basis_label"], s["source"], s["locator"], s["url"]) for s in block["steps"]]
+    stored = [(s["text"], labels["basis_" + s["basis"]], s["source"], s.get("locator", ""), s["url"])
+              for s in reasoning["steps"]]
+    assert shown == stored and all(len(s) == 5 for s in block["steps"]), "reasoning steps"
+    shown = [(o["objection"], o["response"], o["source"], o["locator"], o["url"]) for o in block["objections"]]
+    stored = [(o["objection"], o["response"], o["source"], o.get("locator", ""), o["url"])
+              for o in reasoning.get("objections", [])]
+    assert shown == stored and all(len(o) == 5 for o in block["objections"]), "reasoning objections"
+
+
 def final_check(blocks: list[dict], entry: dict) -> None:
     """Step 11: every verse equals the mushaf, every hadith and source equals the approved entry.
 
@@ -133,3 +166,5 @@ def final_check(blocks: list[dict], entry: dict) -> None:
             assert [i["url"] for i in block["items"][1:]] in ([], [m["url"] for m in entry.get("more_sources", [])])
         if block["type"] == "sharia":
             assert len(block["hadiths"]) == len(entry.get("hadiths", [])), "hadith count"
+        if block["type"] == "reasoning":
+            _check_reasoning(block, entry)

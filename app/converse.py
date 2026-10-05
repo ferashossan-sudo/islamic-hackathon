@@ -26,8 +26,28 @@ class Reply(BaseModel):
     reply: str
 
 
+def reasoning_material(entry: dict, labels: dict[str, str]) -> dict:
+    """The «بالعقل والعلم» layer in order: steps (an "ilm" step carries the degree of its science item) and the
+    objections with their reviewed answers. Empty lists when the entry has none."""
+    reasoning = entry.get("reasoning") or {}
+    degrees = {}
+    for s in entry.get("science", []):
+        degrees.setdefault(s["url"], labels[s["degree"]])
+    steps = []
+    for s in reasoning.get("steps", []):
+        step = {"text": s["text"], "basis": s["basis"]}
+        if s["basis"] == "ilm" and s["url"] in degrees:
+            step["degree"] = degrees[s["url"]]
+        steps.append(step)
+    return {"steps": steps,
+            "objections": [{"objection": o["objection"], "response": o["response"]}
+                           for o in reasoning.get("objections", [])]}
+
+
 def material(entry: dict) -> dict:
-    """What the model may use: the approved entry only, with placeholders for every verse and hadith."""
+    """What the model may use: the approved entry only, with placeholders for every verse and hadith.
+
+    The same material goes to the G14 verifier, so a reply built from the reasoning layer is checked against it."""
     labels = {"fact": "حقيقة ثابتة", "leading_theory": "نظرية راجحة", "hypothesis": "فرضية"}
     return {
         "level": entry["level"],
@@ -36,6 +56,7 @@ def material(entry: dict) -> dict:
         "explain_simple": entry.get("explain_simple") or "",
         "full_text": entry["body"],
         "science": [{"statement": s["claim"], "degree": labels[s["degree"]]} for s in entry.get("science", [])],
+        "reasoning": reasoning_material(entry, labels),
         "tafsir": [{"by": t["mufassir"], "summary": t["summary"]} for t in entry.get("tafsir", [])],
         "verses": [{"placeholder": "{{q:" + ref + "}}", "reference": quran.label(ref),
                     "text": " ".join(v.text for v in quran.lookup(ref))} for ref in entry.get("verses", [])],

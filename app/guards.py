@@ -9,7 +9,7 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
-from app import arabic, quran
+from app import arabic, kb, quran
 
 LEXICON_PATH = Path(__file__).resolve().parent.parent / "content" / "framing_lexicon.json"
 MIN_CHARS, MAX_CHARS, MAX_SENTENCES = 15, 160, 2
@@ -195,10 +195,12 @@ def reply_problem(reply: str, entry: dict, source_names: list[str], message: str
         return "restated"
     plain = _PLACEHOLDER.sub(" ", text)
     # The entry's own prose (without its hadith texts) may share words with a verse; the model may reuse those.
+    # It includes the reviewed «بالعقل والعلم» layer: its steps, objections and responses.
     prose = " ".join(str(x) for x in [
         entry.get("question"), entry.get("summary"), entry.get("explain_simple"), entry.get("body"),
         *[s["claim"] for s in entry.get("science", [])],
-        *[t["mufassir"] + " " + t["summary"] for t in entry.get("tafsir", [])], entry["source"]["name"]])
+        *[t["mufassir"] + " " + t["summary"] for t in entry.get("tafsir", [])], entry["source"]["name"],
+        *kb.reasoning_texts(entry)])
     material = prose + " " + " ".join(h["text"] for h in entry.get("hadiths", []))
     material_norm = " " + " ".join(arabic.words(material)) + " "
     plain_words = arabic.words(plain)

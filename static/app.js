@@ -262,6 +262,32 @@
       box.append(full);
       card.append(box);
     },
+    // «بالعقل والعلم»: the reviewed chain of reasoning, then the common objections, each folded under its question.
+    reasoning(card, b) {
+      const box = section(card, b.title || label("reasoning_title", "بالعقل والعلم"), "block-reasoning");
+      const sourceLine = (item, prefix) => {
+        const line = el("p", "hint", prefix ? prefix + " · " : "");
+        line.append(externalLink([item.source, item.locator].filter(Boolean).join(" "), item.url));
+        return line;
+      };
+      const steps = el("ol", "reasoning-steps");
+      (b.steps || []).forEach((s) => {
+        const li = el("li", "reasoning-step");
+        li.append(el("p", null, s.text), sourceLine(s, s.basis_label));
+        steps.append(li);
+      });
+      box.append(steps);
+      const objections = b.objections || [];
+      if (!objections.length) return;
+      box.append(el("h4", "block-subtitle", b.objections_title || label("objections_title", "اعتراضات شائعة وجوابها")));
+      objections.forEach((o) => {
+        const item = el("details", "objection");
+        item.append(el("summary", null, o.objection));
+        paragraphs(item, o.response);
+        item.append(sourceLine(o, ""));
+        box.append(item);
+      });
+    },
     sharia(card, b) {
       const box = section(card, label("sharia_texts", "النصوص الشرعية"), "block-sharia");
       (b.verses || []).forEach((v) => {

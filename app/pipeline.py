@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from app import arabic, compose, converse, distress, guards, quran, router, texts
+from app import arabic, compose, converse, distress, guards, kb, quran, router, texts
 from app.config import Settings
 from app.limits import LIMITER
 from app.lexical import LexicalIndex
@@ -77,7 +77,8 @@ def request_notices(message: str, response: ChatResponse) -> list[dict]:
     if entry and _EXACT_WORDS.search(message):
         blocks.append(message_block("paraphrase_notice"))
     if entry:
-        material = " ".join(str(entry.get(f) or "") for f in ("summary", "body", "explain_simple"))
+        material = " ".join([*(str(entry.get(f) or "") for f in ("summary", "body", "explain_simple")),
+                             *kb.reasoning_texts(entry)])
         asked = [n for n in guards.KNOWN_NAMES if n in message and n not in material]
         if asked:
             blocks.append({"type": "message", "key": "scholar_not_in_entry",

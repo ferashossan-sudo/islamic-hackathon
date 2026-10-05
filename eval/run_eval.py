@@ -222,7 +222,8 @@ def load_drafts() -> list[dict]:
             print("dropped", entry_id, "|", "; ".join(problems))
             continue
         e = {**chosen, "status": "approved"}
-        e["review"] = {"reviewer": "معاينة مسودة", "reviewed_at": "", "note": "", "approved_hash": kb.approved_hash(e)}
+        e["review"] = {"reviewer": "معاينة مسودة", "reviewed_at": "", "note": "", "approved_hash": kb.approved_hash(e),
+                       "reasoning_hash": kb.reasoning_hash(e)}
         out.append(e)
     return out
 
