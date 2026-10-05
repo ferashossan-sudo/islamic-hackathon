@@ -115,7 +115,7 @@ def _step(i):
 @pytest.mark.parametrize("mutate, expected", [
     (lambda r: r.update(steps=r["steps"][:1]), "الخطوات"),
     (lambda r: r.update(steps=r["steps"] * 2), "الخطوات"),
-    (lambda r: r.update(objections=r["objections"] * 3), "الاعتراضات"),
+    (lambda r: r.update(objections=r["objections"] * 4), "الاعتراضات"),
     (lambda r: r.update(extra=1), "مفاتيح غير معروفة"),
     (lambda r: r["steps"][0].pop("source"), "حقول ناقصة"),
     (lambda r: r["steps"][0].update(text="  "), "حقول ناقصة"),
@@ -423,3 +423,23 @@ def test_merge_reasoning_into_an_approved_entry_keeps_its_approval(store):
     assert stored["reasoning"] == aql_only
     served = kb.approved_only([stored])
     assert [e["id"] for e in served] == ["kawn-approved-one"] and "reasoning" not in served[0]
+
+
+def test_science_overclaim_phrases_are_guarded():
+    """«العلم يقول عكس كذا» about a leading theory: G13 rejects it unless the material itself says it."""
+    e = with_reasoning()
+    reply = "بس العلم يقول عكس كذا، فالكون له بداية. وش رايك؟"
+    assert guards.reply_problem(reply, e, []) == "phrase:العلم يقول"
+
+
+@pytest.mark.parametrize("reply, problem", [
+    ("تذكر وزارة الطاقة في نظرية راجحة أن الكون تمدد من حال ابتدائية، وهذا ينفي كونه أزلياً. وش رايك؟", "overclaim"),
+    ("ويرجّح العلم أن للكون بداية فهو حادث قطعاً. تشوف كذا؟", "overclaim"),
+    ("هي إلى اليوم فرضية لا يثبتها دليل معتبر، فلا تغني عن الخالق. وش تشوف؟", None),
+    ("تذكر وزارة الطاقة في نظرية راجحة أن الكون تمدد من حال ابتدائية. وما حدث بعد عدمه لا بد له من محدث، "
+     "وهذا يثبت الحاجة إلى خالق. وش رايك؟", None),
+])
+def test_leading_theory_never_settles_a_point(reply, problem):
+    e = with_reasoning()
+    got = guards.reply_problem(reply, e, [])
+    assert (got == "overclaim") == (problem == "overclaim"), got

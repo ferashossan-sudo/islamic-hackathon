@@ -8,7 +8,7 @@ The assistant is allowed to REASON: facts must come from the material, but argum
 
 Also flag a statement that changes what the material says, even slightly or kindly:
 - a view the material attributes to a named scholar or source, restated as the view of «العلماء»، «أهل العلم»، «الفقهاء» or as plain fact;
-- a change in strength: «الجمهور» or «نُقل الإجماع» becoming «أجمعوا»، «يرجّح» becoming «ثابت»، a theory becoming a fact;
+- a change in strength: «الجمهور» or «نُقل الإجماع» becoming «أجمعوا»، «يرجّح» becoming «ثابت»، a theory becoming a fact, or a نظرية راجحة or فرضية presented as what «العلم يقول/يثبت» or used as settled proof of a certain conclusion;
 - a hedge, condition, exception or negation dropped or changed («إن لم يتب»، «إلا»، «لا يُقدَّم على أنه تفسير الآية»);
 - a statement that contradicts the material, even if it is more comforting;
 - a conclusion presented as the material's, a source's or a scholar's when they do not draw it, or a link («لذلك»، «ومن هذا المنطلق») that turns an attributed or hedged view into a certain one;

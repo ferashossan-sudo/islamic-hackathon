@@ -118,7 +118,7 @@ _NUMBER = re.compile(r"\d+(?:[.,]\d+)?")
 _LATIN_WORD = re.compile(r"[A-Za-z][A-Za-z0-9.\-]*")
 REPLY_MIN_CHARS, REPLY_MAX_CHARS = 40, 1400
 # Claims the reply may not make unless the approved entry itself makes them.
-GUARDED_PHRASES = ("أثبت العلم", "العلم أثبت", "سبق القرآن", "الإعجاز العلمي", "حقيقة علمية", "أجمع العلماء",
+GUARDED_PHRASES = ("أثبت العلم", "العلم أثبت", "العلم يثبت", "يثبت العلم", "العلم يقول", "العلم يؤكد", "سبق القرآن", "الإعجاز العلمي", "حقيقة علمية", "أجمع العلماء",
                    "اتفق العلماء", "بإجماع", "أجمعوا", "مجمع عليه", "اتفق الفقهاء", "اتفق أهل العلم",
                    "العلماء متفقون", "يقرر العلماء", "يقرر أهل العلم", "الحقيقة أن", "حلال", "حرام", "يجوز",
                    "لا يجوز", "واجب", "فتوى", "كفر", "رواه")
@@ -165,6 +165,10 @@ REASON_ONLY = re.compile(r"بالعقل|بدون دين|بلا دين|بدون (
                          r"لا تجيب.{0,25}(?:دين|آي|اي|حديث|احاديث|أحاديث)|منطق")
 MAX_PLACEHOLDERS, MAX_HADITHS = 2, 1
 _RESTATED = re.compile(r"\}\}[\s\)\]»،,:]*(?:أن|إن|أنه|إنه|أنها|إنها|بأن)\s")
+# A leading theory or a hypothesis is a witness at its own degree: a sentence that names that degree must not
+# also say it negates, proves or settles something («يرجّح أن للكون بداية، وهذا ينفي كونه أزلياً»).
+_DEGREE_WORDS = re.compile("نظرية راجحة|فرضية|يرج[ّ]?ح|ترج[ّ]?ح")
+_SETTLE_WORDS = re.compile("(?<!لا )(?<!لم )(?:ينفي|تنفي|يثبت|تثبت|يقطع|يحسم|قطع[اً]+|حتم[اً]+|بلا شك|بلا ريب)")
 
 
 def reply_problem(reply: str, entry: dict, source_names: list[str], message: str = "") -> str | None:
@@ -193,6 +197,8 @@ def reply_problem(reply: str, entry: dict, source_names: list[str], message: str
         return "reason_only"
     if _RESTATED.search(text):  # «{{h:1}} أن الله...» restates the text the placeholder already shows
         return "restated"
+    if any(_DEGREE_WORDS.search(s) and _SETTLE_WORDS.search(s) for s in re.split(r"[.؟?!\n؛]", text)):
+        return "overclaim"
     plain = _PLACEHOLDER.sub(" ", text)
     # The entry's own prose (without its hadith texts) may share words with a verse; the model may reuse those.
     # It includes the reviewed «بالعقل والعلم» layer: its steps, objections and responses.

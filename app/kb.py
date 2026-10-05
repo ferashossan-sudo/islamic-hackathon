@@ -50,7 +50,7 @@ STEP_FIELDS = ("text", "basis", "source", "url")
 OBJECTION_FIELDS = ("objection", "response", "source", "url")
 REASONING_OPTIONAL = ("locator",)
 REASONING_STEPS = (2, 5)
-REASONING_OBJECTIONS = (0, 4)
+REASONING_OBJECTIONS = (0, 6)
 # Suggested lengths: the reviewer is warned, nothing is cut.
 REASONING_LIMITS = {"text": 280, "objection": 200, "response": 450}
 ANY_PLACEHOLDER = re.compile(r"\{\{|\}\}")

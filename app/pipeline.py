@@ -349,6 +349,9 @@ G13_FEEDBACK = {
                    "say in one short line that the answer also has its sharia evidence for whoever wants it.",
     "prophet_mention": "Do not attribute anything to the Prophet ﷺ unless you use an {{h:n}} placeholder.",
     "prophet_words": "Do not quote the Prophet ﷺ in your own words. Use only an {{h:n}} placeholder.",
+    "overclaim": "A نظرية راجحة or a فرضية is only a supporting witness at its own degree: never say it negates, "
+                 "proves or settles anything (no «ينفي»، «يثبت»، «قطعاً» next to it). Let the rational steps carry "
+                 "the conclusion.",
     "number": "You wrote a number that is not in the material. Remove it.",
     "latin": "You wrote a Latin word or name that is not in the material. Remove it.",
 }
