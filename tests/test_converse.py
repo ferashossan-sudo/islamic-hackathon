@@ -56,15 +56,15 @@ def fakes(monkeypatch):
     pipeline.load(copy.deepcopy(SAMPLE) + [copy.deepcopy(ENTRY)])
     state = {"replies": [GOOD], "verdicts": [[]], "payloads": []}
 
-    async def fake_router(s, system, payload, timeout):
+    async def fake_router(s, model, system, payload, timeout):
         return json.dumps({"route": "knowledge", "entry_id": "kawn-universe-x", "confidence": "high",
                            "oos_reason": "none", "evidence_request": "none", "framing": ""}), {}
 
-    async def fake_compose(s, payload, timeout):
+    async def fake_compose(s, model, payload, timeout):
         state["payloads"].append(json.loads(payload))
         return json.dumps({"reply": state["replies"].pop(0)}, ensure_ascii=False), {}
 
-    async def fake_verify(s, payload, timeout):
+    async def fake_verify(s, model, payload, timeout):
         return json.dumps({"unsupported": state["verdicts"].pop(0)}, ensure_ascii=False), {}
 
     monkeypatch.setitem(router.PROVIDERS, "gemini", fake_router)

@@ -5,11 +5,13 @@ from dataclasses import dataclass
 # Each role names a chain of free-tier models, each with its own daily quota (gemini-3.5-flash-lite: 500 requests;
 # gemini-3.5-flash: 20, too few). The next model answers when one is out of quota or busy (app/gemini.py).
 # The verifier chain starts with the model that scored 8/8 in eval/check_verifier.py.
-DEFAULT_MODELS = {"gemini": "gemini-3.5-flash-lite,gemini-3.1-flash-lite", "anthropic": "claude-opus-5-5"}
-DEFAULT_CONVERSE_MODELS = {"gemini": "gemini-3.1-flash-lite,gemini-3.5-flash-lite", "anthropic": "claude-opus-5-5"}
+# With Anthropic (paid): Claude Haiku 4.5 understands the question and checks the reply (fast, cheap), and Claude
+# Sonnet 5.5 holds the conversation; the Gemini chains stay as the backup when a Claude call fails.
+DEFAULT_MODELS = {"gemini": "gemini-3.5-flash-lite,gemini-3.1-flash-lite", "anthropic": "claude-haiku-4-5"}
+DEFAULT_CONVERSE_MODELS = {"gemini": "gemini-3.1-flash-lite,gemini-3.5-flash-lite", "anthropic": "claude-sonnet-5-5"}
 # gemma-4-26b-a4b-it flagged 6/6 invented claims when it answered but failed 2 of 8 calls, so it comes last.
 DEFAULT_VERIFY_MODELS = {"gemini": "gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemma-4-26b-a4b-it",
-                         "anthropic": "claude-opus-5-5"}
+                         "anthropic": "claude-haiku-4-5"}
 
 
 def with_fallbacks(models: str, defaults: str) -> str:
@@ -38,6 +40,11 @@ def _flag(name: str, default: bool) -> bool:
 class Settings:
     router_provider: str
     router_model: str
+    converse_provider: str
+    verify_provider: str
+    gemini_router_model: str  # the Gemini chains: the models when Gemini is the provider, the backup otherwise
+    gemini_converse_model: str
+    gemini_verify_model: str
     gemini_api_key: str
     anthropic_api_key: str
     router_timeout_s: float
@@ -56,27 +63,43 @@ class Settings:
     version: str
     submission_commit: str
 
+    def key_for(self, provider: str) -> str:
+        return self.gemini_api_key if provider == "gemini" else self.anthropic_api_key
+
     @property
     def router_key(self) -> str:
-        return self.gemini_api_key if self.router_provider == "gemini" else self.anthropic_api_key
+        return self.key_for(self.router_provider)
 
 
 def load_settings() -> Settings:
     commit = os.environ.get("RENDER_GIT_COMMIT", "")
     provider = os.environ.get("ROUTER_PROVIDER", "gemini").strip().lower()
-    def models(name: str, defaults: dict) -> str:
-        value = os.environ.get(name, "").strip()
-        default = defaults.get(provider, "")
-        if provider != "gemini":  # one model, no chain
-            return value or default
-        return with_fallbacks(value, default) if value else default
+    converse_provider = os.environ.get("CONVERSE_PROVIDER", "").strip().lower() or provider
+    verify_provider = os.environ.get("VERIFY_PROVIDER", "").strip().lower() or provider
 
-    router_model = models("ROUTER_MODEL", DEFAULT_MODELS)
+    def gemini_chain(name: str, defaults: dict) -> str:
+        value = os.environ.get(name, "").strip()
+        if value.startswith("claude-"):
+            value = ""
+        return with_fallbacks(value, defaults["gemini"]) if value else defaults["gemini"]
+
+    def models(name: str, defaults: dict, role_provider: str) -> str:
+        if role_provider == "gemini":
+            return gemini_chain(name, defaults)
+        value = os.environ.get(name, "").strip()
+        # One model, no chain. A Gemini name left in the dashboard is ignored rather than sent to Anthropic.
+        return value if value.startswith("claude-") else defaults.get(role_provider, "")
+
     return Settings(
         router_provider=provider,
-        router_model=router_model,
-        converse_model=models("CONVERSE_MODEL", DEFAULT_CONVERSE_MODELS) or router_model,
-        verify_model=models("VERIFY_MODEL", DEFAULT_VERIFY_MODELS) or router_model,
+        router_model=models("ROUTER_MODEL", DEFAULT_MODELS, provider),
+        converse_provider=converse_provider,
+        verify_provider=verify_provider,
+        gemini_router_model=gemini_chain("ROUTER_MODEL", DEFAULT_MODELS),
+        gemini_converse_model=gemini_chain("CONVERSE_MODEL", DEFAULT_CONVERSE_MODELS),
+        gemini_verify_model=gemini_chain("VERIFY_MODEL", DEFAULT_VERIFY_MODELS),
+        converse_model=models("CONVERSE_MODEL", DEFAULT_CONVERSE_MODELS, converse_provider),
+        verify_model=models("VERIFY_MODEL", DEFAULT_VERIFY_MODELS, verify_provider),
         converse_enabled=_flag("CONVERSE_ENABLED", True),
         converse_timeout_s=float(os.environ.get("CONVERSE_TIMEOUT_S", "15")),
         gemini_api_key=os.environ.get("GEMINI_API_KEY", ""),

@@ -28,7 +28,7 @@ def fake(monkeypatch):
     pipeline.load(copy.deepcopy(SAMPLE))
     calls = {"reply": decision(), "payloads": [], "systems": []}
 
-    async def provider(s, system, payload, timeout):
+    async def provider(s, model, system, payload, timeout):
         calls["payloads"].append(payload)
         calls["systems"].append(system)
         reply = calls["reply"]

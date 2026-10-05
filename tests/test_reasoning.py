@@ -253,7 +253,7 @@ FROM_REASONING = ("سؤالك عن أصل الكون في محله.\nالعقل 
 def test_verifier_payload_includes_the_reasoning(monkeypatch):
     seen = []
 
-    async def fake_verify(s, payload, timeout):
+    async def fake_verify(s, model, payload, timeout):
         seen.append(json.loads(payload))
         return json.dumps({"unsupported": []}), {}
 
@@ -292,15 +292,15 @@ def chat_fakes(monkeypatch):
     pipeline.load([with_reasoning()])
     state = {"payloads": []}
 
-    async def fake_router(s, system, payload, timeout):
+    async def fake_router(s, model, system, payload, timeout):
         return json.dumps({"route": "knowledge", "entry_id": "kawn-reason-x", "confidence": "high",
                            "oos_reason": "none", "evidence_request": "none", "framing": ""}), {}
 
-    async def fake_compose(s, payload, timeout):
+    async def fake_compose(s, model, payload, timeout):
         state["payloads"].append(json.loads(payload))
         return json.dumps({"reply": FROM_REASONING}, ensure_ascii=False), {}
 
-    async def fake_verify(s, payload, timeout):
+    async def fake_verify(s, model, payload, timeout):
         state["payloads"].append(json.loads(payload))
         return json.dumps({"unsupported": []}), {}
 

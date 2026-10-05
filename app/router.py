@@ -11,10 +11,11 @@ from pathlib import Path
 from time import perf_counter
 from typing import Literal
 
+import anthropic
 import httpx
 from pydantic import BaseModel, ConfigDict, ValidationError
 
-from app import gemini
+from app import claude, gemini
 from app.config import Settings, first
 from app.usage import log_event
 
@@ -70,28 +71,17 @@ def user_payload(message: str, prev_entry: dict | None, prev_message: str = "") 
                       ensure_ascii=False)
 
 
-async def _gemini(s: Settings, system: str, payload: str, timeout: float) -> tuple[str, dict]:
-    return await gemini.generate(s.gemini_api_key, s.router_model, system, payload, _schema(upper=True), timeout,
+async def _gemini(s: Settings, model: str, system: str, payload: str, timeout: float) -> tuple[str, dict]:
+    return await gemini.generate(s.gemini_api_key, model, system, payload, _schema(upper=True), timeout,
                                  max_tokens=400)
 
 
-async def _anthropic(s: Settings, system: str, payload: str, timeout: float) -> tuple[str, dict]:
-    import anthropic
-
-    client = anthropic.AsyncAnthropic(api_key=s.anthropic_api_key, timeout=timeout, max_retries=0)
+async def _anthropic(s: Settings, model: str, system: str, payload: str, timeout: float) -> tuple[str, dict]:
     rules, _, cat = system.partition("\n\n\x1e")
-    response = await client.messages.create(
-        model=first(s.router_model), max_tokens=400,
-        system=[{"type": "text", "text": rules}, {"type": "text", "text": cat, "cache_control": {"type": "ephemeral"}}],
-        messages=[{"role": "user", "content": payload}],
-        output_config={"format": {"type": "json_schema", "schema": _schema(upper=False)}, "effort": "low"},
-    )
-    if response.stop_reason == "refusal":
-        raise ValueError("refusal")
-    text = next(b.text for b in response.content if b.type == "text")
-    u = response.usage
-    return text, {"in": u.input_tokens, "out": u.output_tokens,
-                  "cache_read": getattr(u, "cache_read_input_tokens", 0) or 0, "usd": None}
+    # The rules and the catalog are the same for every message: cached as one prefix.
+    blocks = [{"type": "text", "text": rules}, {"type": "text", "text": cat, "cache_control": {"type": "ephemeral"}}]
+    return await claude.generate(s.anthropic_api_key, model, blocks, payload, _schema(upper=False), timeout,
+                                 max_tokens=600)
 
 
 PROVIDERS = {"gemini": _gemini, "anthropic": _anthropic}
@@ -100,33 +90,45 @@ PROVIDERS = {"gemini": _gemini, "anthropic": _anthropic}
 async def decide(message: str, prev_entry: dict | None, entries: list[dict], s: Settings,
                  prev_message: str = "") -> Decision | None:
     """One classification call. None means: use the lexical path."""
-    call = PROVIDERS.get(s.router_provider)
-    if call is None or not s.router_key or not entries:
+    if not entries:
+        return None
+    # The configured provider first; Gemini as the backup when Claude is the provider and its call fails.
+    chain = [(s.router_provider, s.router_model)]
+    if s.router_provider != "gemini":
+        chain.append(("gemini", s.gemini_router_model))
+    chain = [(PROVIDERS[p], m) for p, m in chain if p in PROVIDERS and s.key_for(p)]
+    if not chain:
         return None
     system = RULES + "\n\n\x1e" + catalog(entries)
     payload = user_payload(message, prev_entry, prev_message)
     started = perf_counter()
     from app.limits import LIMITER
 
-    for attempt, timeout in enumerate((s.router_timeout_s, s.router_retry_timeout_s)):
-        try:
-            LIMITER.count_llm_call()
-            text, usage = await call(s, system, payload, timeout)
-            decision = Decision.model_validate_json(text)
-            usage.setdefault("model", first(s.router_model))
-            log_event(event="llm", call="router", ok=True, ms=round((perf_counter() - started) * 1000), **usage)
-            RECENT_OUTCOMES.append(True)
-            return decision
-        except (httpx.TransportError, httpx.HTTPStatusError) as exc:
-            retryable = isinstance(exc, httpx.TransportError) or exc.response.status_code >= 500
-            if attempt == 0 and retryable:
-                continue
-            break
-        except (ValidationError, ValueError, KeyError, StopIteration):
-            break
-        except Exception:  # noqa: BLE001 - any provider failure falls back to the lexical path
-            break
-    log_event(event="llm", call="router", ok=False, ms=round((perf_counter() - started) * 1000))
+    for call, model in chain:
+        for attempt, timeout in enumerate((s.router_timeout_s, s.router_retry_timeout_s)):
+            try:
+                LIMITER.count_llm_call()
+                text, usage = await call(s, model, system, payload, timeout)
+                decision = Decision.model_validate_json(text)
+                usage.setdefault("model", first(model))
+                log_event(event="llm", call="router", ok=True, ms=round((perf_counter() - started) * 1000), **usage)
+                RECENT_OUTCOMES.append(True)
+                return decision
+            except (httpx.TransportError, httpx.HTTPStatusError) as exc:
+                retryable = isinstance(exc, httpx.TransportError) or exc.response.status_code >= 500
+                if attempt == 0 and retryable:
+                    continue
+                break
+            except (anthropic.APIConnectionError, anthropic.InternalServerError):
+                if attempt == 0:
+                    continue
+                break
+            except (ValidationError, ValueError, KeyError, StopIteration):
+                break
+            except Exception:  # noqa: BLE001 - any provider failure: the next provider, then the lexical path
+                break
+        log_event(event="llm", call="router", ok=False, model=first(model),
+                  ms=round((perf_counter() - started) * 1000))
     RECENT_OUTCOMES.append(False)
     return None
 

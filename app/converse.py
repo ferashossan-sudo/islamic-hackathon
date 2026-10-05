@@ -10,7 +10,7 @@ from time import perf_counter
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
-from app import gemini, quran
+from app import claude, gemini, quran
 from app.config import Settings, first
 from app.usage import log_event
 
@@ -87,54 +87,65 @@ class Verdict(BaseModel):
     unsupported: list[str]
 
 
-async def _gemini(s: Settings, payload_text: str, timeout: float) -> tuple[str, dict]:
-    return await gemini.generate(s.gemini_api_key, s.converse_model, RULES, payload_text, SCHEMA_GEMINI, timeout)
+VERIFY_SCHEMA_ANTHROPIC = {"type": "object", "properties": {"unsupported": {"type": "array", "items": {"type": "string"}}},
+                           "required": ["unsupported"], "additionalProperties": False}
 
 
-async def _gemini_verify(s: Settings, payload_text: str, timeout: float) -> tuple[str, dict]:
-    return await gemini.generate(s.gemini_api_key, s.verify_model, VERIFY_RULES, payload_text, VERIFY_SCHEMA_GEMINI,
-                                 timeout)
+async def _gemini(s: Settings, model: str, payload_text: str, timeout: float) -> tuple[str, dict]:
+    return await gemini.generate(s.gemini_api_key, model, RULES, payload_text, SCHEMA_GEMINI, timeout)
 
 
-async def _anthropic(s: Settings, payload_text: str, timeout: float) -> tuple[str, dict]:
-    import anthropic
+async def _gemini_verify(s: Settings, model: str, payload_text: str, timeout: float) -> tuple[str, dict]:
+    return await gemini.generate(s.gemini_api_key, model, VERIFY_RULES, payload_text, VERIFY_SCHEMA_GEMINI, timeout)
 
-    client = anthropic.AsyncAnthropic(api_key=s.anthropic_api_key, timeout=timeout, max_retries=0)
-    response = await client.messages.create(
-        model=first(s.converse_model), max_tokens=1200, system=RULES,
-        messages=[{"role": "user", "content": payload_text}],
-        output_config={"format": {"type": "json_schema", "schema": SCHEMA_ANTHROPIC}, "effort": "low"},
-    )
-    if response.stop_reason == "refusal":
-        raise ValueError("refusal")
-    text = next(b.text for b in response.content if b.type == "text")
-    return text, {"in": response.usage.input_tokens, "out": response.usage.output_tokens, "usd": None}
+
+async def _anthropic(s: Settings, model: str, payload_text: str, timeout: float) -> tuple[str, dict]:
+    system = [{"type": "text", "text": RULES, "cache_control": {"type": "ephemeral"}}]  # same rules every call
+    return await claude.generate(s.anthropic_api_key, model, system, payload_text, SCHEMA_ANTHROPIC, timeout,
+                                 max_tokens=4000)  # adaptive thinking counts toward max_tokens
+
+
+async def _anthropic_verify(s: Settings, model: str, payload_text: str, timeout: float) -> tuple[str, dict]:
+    return await claude.generate(s.anthropic_api_key, model, VERIFY_RULES, payload_text, VERIFY_SCHEMA_ANTHROPIC,
+                                 timeout, max_tokens=1000)
 
 
 PROVIDERS = {"gemini": _gemini, "anthropic": _anthropic}
-VERIFIERS = {"gemini": _gemini_verify}
+VERIFIERS = {"gemini": _gemini_verify, "anthropic": _anthropic_verify}
 
 
-async def _call(kind: str, fn, s: Settings, payload_text: str, model_cls):
+def _chain(s: Settings, verify: bool) -> list[tuple]:
+    """The configured provider for this role first, then Gemini as the backup when the provider is Claude."""
+    table = VERIFIERS if verify else PROVIDERS
+    provider = s.verify_provider if verify else s.converse_provider
+    chain = [(provider, s.verify_model if verify else s.converse_model)]
+    if provider != "gemini":
+        chain.append(("gemini", s.gemini_verify_model if verify else s.gemini_converse_model))
+    return [(table[p], m) for p, m in chain if p in table and s.key_for(p)]
+
+
+async def _call(kind: str, chain: list[tuple], s: Settings, payload_text: str, model_cls):
     from app.limits import LIMITER
 
-    started = perf_counter()
-    try:
-        LIMITER.count_llm_call()
-        text, usage = await fn(s, payload_text, s.converse_timeout_s)
-        value = model_cls.model_validate_json(text)
-        log_event(event="llm", call=kind, ok=True, ms=round((perf_counter() - started) * 1000), **usage)
-        return value
-    except Exception:  # noqa: BLE001 - any provider failure: the approved card is shown alone
-        log_event(event="llm", call=kind, ok=False, ms=round((perf_counter() - started) * 1000))
-        return None
+    for fn, model in chain:
+        started = perf_counter()
+        try:
+            LIMITER.count_llm_call()
+            text, usage = await fn(s, model, payload_text, s.converse_timeout_s)
+            value = model_cls.model_validate_json(text)
+            usage.setdefault("model", first(model))
+            log_event(event="llm", call=kind, ok=True, ms=round((perf_counter() - started) * 1000), **usage)
+            return value
+        except Exception:  # noqa: BLE001 - any provider failure: the next provider, then the approved card alone
+            log_event(event="llm", call=kind, ok=False, model=first(model), ms=round((perf_counter() - started) * 1000))
+    return None
 
 
 async def compose_reply(message: str, history: list[dict], entry: dict, s: Settings,
                         feedback: list[str] | None = None) -> str | None:
     """One conversational call. None on any failure; the caller then shows the approved card alone."""
-    call = PROVIDERS.get(s.router_provider)
-    if call is None or not s.router_key or not s.converse_enabled:
+    chain = _chain(s, verify=False)
+    if not chain or not s.converse_enabled:
         return None
     text = payload(message, history, entry)
     if feedback:
@@ -142,15 +153,15 @@ async def compose_reply(message: str, history: list[dict], entry: dict, s: Setti
         data["previous_reply_problems"] = ("Your previous reply was rejected for these reasons. "
                                            "Rewrite it so that none of them applies: " + " | ".join(feedback))
         text = json.dumps(data, ensure_ascii=False)
-    result = await _call("converse", call, s, text, Reply)
+    result = await _call("converse", chain, s, text, Reply)
     return result.reply.strip() if result else None
 
 
 async def unsupported_claims(reply: str, entry: dict, s: Settings) -> list[str] | None:
     """G14: a second, strict call lists statements not supported by the approved entry. None if it failed."""
-    call = VERIFIERS.get(s.router_provider)
-    if call is None:
-        return []  # no verifier for this provider: rely on G13 alone
+    chain = _chain(s, verify=True)
+    if not chain:
+        return []  # no verifier available: rely on G13 alone
     text = json.dumps({"material": material(entry), "reply": reply}, ensure_ascii=False)
-    result = await _call("verify", call, s, text, Verdict)
+    result = await _call("verify", chain, s, text, Verdict)
     return result.unsupported if result else None

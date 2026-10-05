@@ -36,8 +36,13 @@ def render_index(s: Settings) -> str:
     labels = texts.pairs("ui_labels")
     footer_parts = texts.text("footer").split(" · ")
 
+    # The welcome and privacy texts name the model provider actually in use.
+    claude_in_use = "anthropic" in (s.router_provider, s.converse_provider) and bool(s.anthropic_api_key)
+
     def replace(match: re.Match) -> str:
         kind, key = match.groups()
+        if claude_in_use and key in ("welcome", "privacy_section"):
+            key += "_claude"
         if kind == "t":
             return escape(texts.text(key))
         if kind == "l":

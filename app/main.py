@@ -77,7 +77,8 @@ async def health() -> dict:
     return {"ok": True, "version": settings.version, "approved": len(APPROVED), "kb_hash": KB_HASH,
             "llm": router.health(settings), "provider": settings.router_provider if settings.router_key else None,
             "models": {"router": settings.router_model, "converse": settings.converse_model,
-                       "verify": settings.verify_model}}
+                       "verify": settings.verify_model},
+            "backup": "gemini" if settings.router_provider != "gemini" and settings.gemini_api_key else None}
 
 
 @app.get("/api/selftest")
