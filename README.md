@@ -46,7 +46,7 @@ uv run pytest -q
 LLM_ENABLED=false uv run uvicorn app.main:app --port 8000
 ```
 
-**مع النموذج:** انسخ `.env.example` إلى `.env`، وضع فيه `GEMINI_API_KEY`، ثم:
+**مع النموذج:** انسخ `.env.example` إلى `.env`، وضع فيه `ANTHROPIC_API_KEY` مع `ROUTER_PROVIDER=anthropic` (Claude Haiku 4.5 للفهم والتدقيق، وSonnet 5.5 للحوار)، و`GEMINI_API_KEY` احتياطاً، ثم:
 
 ```bash
 uv run --env-file .env uvicorn app.main:app --port 8000
