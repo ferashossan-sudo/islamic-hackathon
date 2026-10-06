@@ -243,9 +243,6 @@
   const renderers = {
     chat(card, b) {
       const box = el("div", "block block-chat");
-      const badge = el("span", "tag tag-chat", b.label);
-      badge.title = b.hint || "";
-      box.append(badge);
       chatInto(box, b.segments);
       card.append(box);
     },
@@ -475,25 +472,6 @@
     card.append(box);
   }
 
-  // The common objections of the answer's reviewed «بالعقل والعلم» layer, as one-tap follow-up questions.
-  function followUps(card, reasoning) {
-    // Short ones only, so they read as questions to tap, not paragraphs.
-    const items = ((reasoning && reasoning.objections) || []).filter((o) => o.objection.length <= 90).slice(0, 3);
-    if (!items.length) return;
-    const box = el("div", "block block-related follow-ups");
-    box.append(el("p", "hint", label("follow_ups", "قد تسأل أيضاً:")));
-    items.forEach((o) => {
-      const chip = el("button", "chip", o.objection);
-      chip.type = "button";
-      chip.addEventListener("click", () => {
-        input.value = o.objection;
-        submit();
-      });
-      box.append(chip);
-    });
-    card.append(box);
-  }
-
   // Blocks that go under «الأدلة والتفاصيل» when the approved card is shown without a conversational reply.
   const DETAIL_BLOCKS = new Set(["reasoning", "science", "related"]);
 
@@ -539,8 +517,10 @@
     });
     if (sharia && !lead) compactSharia(card, sharia);
     if (sources || science || reasoning) compactSources(card, sources, science, reasoning);
-    if (review) renderers.review(card, review);
-    if (!lead) followUps(card, reasoning);  // with the layer as the answer, its objections are already shown
+    if (review) {  // who reviewed it and how it was written: inside the approved card, under the reply
+      renderers.review(folded, review);
+      foldedCount += 1;
+    }
     if (foldedCount) card.append(folded);
     appendToLog(card);
     scrollToEnd(card, "start");
@@ -574,7 +554,7 @@
     box.setAttribute("role", "status");
     const dots = el("div", "typing-dots");
     dots.append(el("span"), el("span"), el("span"));
-    box.append(dots, el("span", "typing-label", label("loading", "…")));
+    box.append(dots, el("span", "visually-hidden", label("loading", "…")));
     return box;
   }
 

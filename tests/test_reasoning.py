@@ -508,6 +508,6 @@ def test_frontend_shows_the_sharia_texts_the_named_source_and_the_reviewer_under
     css = (ROOT / "static" / "styles.css").read_text(encoding="utf-8")
     assert "function compactSharia(card, b)" in js and '"block sharia-compact"' in js
     assert '" (" + items.length + "): " + items[0].name' in js  # the approved answer's own source is named
-    assert "if (review) renderers.review(card, review);" in js
+    assert "renderers.review(folded, review);" in js  # under the reply, inside the approved card
     assert 'const DETAIL_BLOCKS = new Set(["reasoning", "science", "related"]);' in js
     assert ".sharia-compact" in css and "text-overflow: ellipsis" in css

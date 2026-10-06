@@ -179,6 +179,12 @@
     "approved_by": null,
     "approved_at": null
   },
+  "support_contacts": {
+    "text": "الفتوى الهاتفية: 8002451000 · المصدر: الرئاسة العامة للبحوث العلمية والإفتاء\nالاستشارات النفسية: 920033360 · المصدر: وزارة الصحة",
+    "text_en": "",
+    "approved_by": null,
+    "approved_at": null
+  },
   "distress_addon_harm": {
     "text": "وإن كان أحد يؤذيك أو يؤذي أحداً في بيتكم: مركز بلاغات العنف الأسري 1919 (مجاني، وعلى مدار الساعة) · المصدر: وزارة الموارد البشرية والتنمية الاجتماعية",
     "text_en": "If someone is hurting you: Domestic Violence Reporting Center 1919 (toll-free, 24/7) · Source: Ministry of Human Resources and Social Development",
