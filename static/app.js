@@ -764,6 +764,8 @@
   // Only the fact that they were confirmed is remembered on this device, so the next visit opens the conversation.
   const CONSENT_KEY = "lq-consent-v1";
   const onboarding = document.getElementById("onboarding");
+  // «?intro», for filming the demo: the introduction again even after consent, and the splash waits for a click.
+  const INTRO = new URLSearchParams(window.location.search).has("intro");
 
   function consentGiven() {
     try {
@@ -821,7 +823,7 @@
       }, 850);
     }
 
-    const timer = window.setTimeout(leaveSplash, reducedMotion ? 1500 : 5200);
+    const timer = INTRO ? 0 : window.setTimeout(leaveSplash, reducedMotion ? 1500 : 5200);
     splash.addEventListener("click", leaveSplash);
     document.getElementById("consent-back").addEventListener("click", () => go("welcome", "back"));
     checks.forEach((c) => c.addEventListener("change", () => {
@@ -843,7 +845,7 @@
     });
   }
 
-  if (consentGiven()) {
+  if (consentGiven() && !INTRO) {
     showApp(false);
   } else {
     startOnboarding();
