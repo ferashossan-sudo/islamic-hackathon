@@ -184,3 +184,10 @@ def test_non_arabic_term_gets_approved_glossary_meaning(monkeypatch):
     monkeypatch.setattr(pipeline, "load_glossary", lambda: [{**item, "approved_by": None}])
     r = ask("What does jihad mean in Islam?")[1]
     assert r.kind == "non_arabic" and all(b["type"] != "glossary" for b in r.blocks)
+
+
+def test_maybe_you_mean_needs_a_shared_topic_word():
+    # «ربما تقصد» after an abstention must not offer unrelated topics («معقول» alone is not a topic).
+    assert pipeline._topic_words("ما فهمت، وضح أكثر") == set()
+    assert "معقول" not in pipeline._topic_words("هل البعث بعد الموت معقول؟")
+    assert pipeline._topic_words("هل البعث بعد الموت معقول؟")  # البعث and الموت remain

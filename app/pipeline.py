@@ -233,11 +233,36 @@ def _asks_hadith_grade(message: str) -> bool:
 MAYBE_MIN_SCORE = 0.2
 
 
+# Words too common to make two questions related: «هل البعث بعد الموت معقول؟» must not suggest «بول الإبل» because
+# both say «معقول», and «ما فهمت، وضّح أكثر» suggests nothing.
+_GENERIC_WORDS = frozenset(arabic.normalize(w) for w in (
+    "هل", "ما", "ماذا", "لماذا", "كيف", "ليش", "وش", "ايش", "متى", "اين", "أين", "من", "في", "على", "عن", "الى", "إلى",
+    "أن", "ان", "إن", "هذا", "هذه", "ذلك", "تلك", "الذي", "التي", "الله", "الإسلام", "الاسلام", "إسلام", "الدين",
+    "دين", "القرآن", "قرآن", "العلم", "علم", "العقل", "عقل", "معقول", "منطقي", "صحيح", "صح", "حقيقة", "حقيقي",
+    "يعني", "طيب", "أكثر", "اكثر", "وضح", "وضّح", "اشرح", "فهمت", "افهم", "مقتنع", "شي", "شيء", "يقول", "يقولون",
+    "قال", "كان", "يكون", "مع", "او", "أو", "ولا", "لا", "لم", "لن", "بعد", "قبل", "كل", "بعض", "أتعامل", "اتعامل",
+    "تعامل", "التعامل", "أعرف", "اعرف", "أبي", "ابي", "أريد", "اريد", "سؤال", "سؤالي", "جواب", "مسلم", "المسلمين",
+    "المسلم", "الناس", "الإنسان", "انسان", "إنسان", "يسمح", "سمح", "ربي", "ربنا", "رب", "الدليل", "دليل", "أدلة", "ادلة"))
+
+
+def _topic_words(text: str) -> set[str]:
+    """The message's content words without attached prefixes, minus the generic ones."""
+    generic = {guards._core(w) for w in _GENERIC_WORDS} | _GENERIC_WORDS
+    return {guards._core(w) for w in arabic.words(text) if len(w) >= 3} - generic
+
+
 def _maybe_block(message: str, exclude: str | None = None) -> list[dict]:
-    """W2 «ربما تقصد»: up to three approved questions that are lexically close."""
+    """W2 «ربما تقصد»: up to three approved questions that are lexically close AND share a topic word with the
+    message (its question or one of its variants), so an honest abstention is never followed by unrelated topics."""
     hits = STATE.index.search(message, k=4) if STATE.index else []
+    asked = _topic_words(message)
+
+    def related(eid: str) -> bool:
+        e = STATE.entries[eid]
+        return bool(asked & set().union(*(_topic_words(q) for q in [e["question"], *e.get("variants", [])])))
+
     items = [{"id": eid, "question": compose.question_text(STATE.entries[eid]["question"])}
-             for eid, score in hits if score >= MAYBE_MIN_SCORE and eid != exclude][:3]
+             for eid, score in hits if score >= MAYBE_MIN_SCORE and eid != exclude and related(eid)][:3]
     if not items:
         return []
     return [{"type": "related", "title": texts.pairs("ui_labels")["maybe_you_mean"], "items": items}]
