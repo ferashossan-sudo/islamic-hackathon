@@ -132,7 +132,9 @@ CLAIM_WORDS = frozenset(arabic.normalize(w) for w in (
     "اتفق", "اتفقت", "اتفقوا", "اتفاق", "إجماع", "أجمع", "أجمعوا", "الجمهور", "جمهور", "جائز", "جواز", "يجوز",
     "يباح", "مباح", "حدا", "عقوبة", "عقوبته", "القتل", "يقتل"))
 # Words that point at a named holder in the material («تذكر الموسوعة...»، «في جواب الموقع»); never «العلماء» alone.
-HOLDER_WORDS = ("الموسوعة", "الموقع", "الفتوى", "جواب", "اللجنة الدائمة", "الشيخ")
+HOLDER_WORDS = ("الموسوعة", "الموقع", "الفتوى", "جواب", "اللجنة الدائمة", "الشيخ",
+                # unnamed but hedged: the reply does not name its sources, which are listed under it
+                "من أهل العلم", "بعض أهل العلم", "بعض العلماء", "من العلماء", "بعض المفسرين", "من المفسرين")
 _SENTENCE = re.compile(r"[.!؟?\n]+")
 
 

@@ -321,7 +321,7 @@ def test_an_objection_answered_from_the_reasoning_is_shown_above_the_card(chat_f
 def test_frontend_renders_the_reasoning_block_with_text_content_only():
     js = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
     css = (ROOT / "static" / "styles.css").read_text(encoding="utf-8")
-    assert "reasoning(card, b)" in js and '"block-reasoning"' in js and '"objection"' in js
+    assert "reasoning(card, b, bare)" in js and '"block-reasoning"' in js and '"objection"' in js
     assert ".objection" in css and ".reasoning-steps" in css
 
 
@@ -502,12 +502,12 @@ def test_a_followup_goes_to_the_dialogue_not_the_next_layer(monkeypatch):
         pipeline.STATE.entries, pipeline.STATE.index, pipeline.STATE.source_names = before
 
 
-def test_frontend_shows_the_sharia_texts_the_named_source_and_the_reviewer_under_the_reply():
-    # The field survey: most readers judge an answer by its Quran or Sunnah evidence and by who said it.
+def test_frontend_shows_one_sources_line_under_the_reply_and_types_it_in():
+    # The sharia reviewer: the reply talks in its own voice; under it, one line with the links to its sources only.
     js = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
     css = (ROOT / "static" / "styles.css").read_text(encoding="utf-8")
-    assert "function compactSharia(card, b)" in js and '"block sharia-compact"' in js
-    assert '" (" + items.length + "): " + items[0].name' in js  # the approved answer's own source is named
-    assert "renderers.review(folded, review);" in js  # under the reply, inside the approved card
-    assert 'const DETAIL_BLOCKS = new Set(["reasoning", "science", "related"]);' in js
-    assert ".sharia-compact" in css and "text-overflow: ellipsis" in css
+    assert "function sourcesInto(card, blocks)" in js and '"block sources-compact toggle"' in js
+    assert 'const shown = chat ? ["chat", "message"]' in js  # no notice, sharia line, approved card or review line
+    assert "compactSharia" not in js and "renderers.review(folded" not in js
+    assert "function typeIn(box, after)" in js and "reducedMotion" in js
+    assert ".tw.in" in css and ".tw-after.in" in css

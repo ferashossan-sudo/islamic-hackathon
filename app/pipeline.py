@@ -361,9 +361,9 @@ G13_FEEDBACK = {
                              "{{q:...}} or {{h:n}} placeholders, and say what they show in your own words BEFORE "
                              "the placeholder; never restate them after it.",
     "placeholders": "Too many verses and hadiths: use at most two placeholders, and at most one hadith.",
-    "attribution": "This is a contested answer: every sentence about a ruling, a penalty, a permission or a "
-                   "consensus must name who holds it, from the material, in the same sentence (for example "
-                   "«تذكر الموسوعة الفقهية في الدرر السنية أن...»). Never say «العلماء» or «اتفق» in your own voice.",
+    "attribution": "This is a contested answer: present every ruling, penalty, permission or consensus as a view, "
+                   "hedged in the same sentence without naming anyone (for example «من أهل العلم من يرى أن...»), "
+                   "never as settled fact; never say «العلماء» or «اتفق» in your own voice.",
     "restated": "Do not restate a verse or hadith after its placeholder: say what it shows in your own words "
                 "BEFORE the placeholder, and let the placeholder end the sentence.",
     "reason_only": "The person asked to be convinced by reason only: use no verse or hadith placeholder; you may "
@@ -403,7 +403,17 @@ STYLE_FEEDBACK = {
     "opens_with_placeholder": "Do not open with a verse or hadith: start with one plain sentence about the question.",
     "no_paragraphs": "Write short paragraphs separated by \\n.",
     "register": "The person writes in Gulf dialect: answer in light, polite Gulf dialect like a respected friend.",
+    "label": "Do not start with a label such as «الجواب المباشر» or «باختصار»: just talk, like a person in a conversation.",
+    "names_sources": "Do not name sources, sites, books, encyclopedias, institutes, universities or scholars in the reply "
+                      "(«يقرر الشيخ…»، «بحسب موقع…»، «يذكر كتاب…»): say it in your own voice, with the same certainty "
+                      "and hedges. The sources are listed under your reply.",
 }
+# Openings that label the reply instead of talking, and phrases that narrate a source instead of speaking in our voice.
+LABEL_OPENINGS = ("الجواب المباشر", "الجواب:", "الإجابة:", "باختصار:", "الخلاصة:", "الجواب باختصار")
+SOURCE_NARRATION = ("بحسب موقع", "بحسب وزارة", "بحسب جامعة", "بحسب المعهد", "يقرر الشيخ", "يقرر كتاب", "يقرر «",
+                    "يذكر كتاب", "تذكر الموسوعة", "تقرر الموسوعة", "تفسر الموسوعة", "تفسّر الموسوعة", "في جواب الموقع",
+                    "يذكر موقع", "كما يذكر المعهد", "يذكر المعهد", "يقول علماء جامعة", "الإسلام سؤال وجواب",
+                    "الدرر السنية", "بينات", "مركز أصول", "موقع الشيخ", "فهم التطور")
 GULF_MARKERS = frozenset(arabic.normalize(w) for w in (
     "وش", "ليش", "ابي", "أبي", "ابغى", "عطني", "قريت", "طيب", "يعني", "مو", "ولا لا", "شلون", "وشلون", "كذا", "زين"))
 
@@ -421,6 +431,10 @@ def style_problem(reply: str, history: list[dict], message: str = "") -> str | N
         return "no_paragraphs"
     if set(arabic.words(message)) & GULF_MARKERS and not set(arabic.words(reply)) & GULF_MARKERS:
         return "register"
+    if any(reply.lstrip().startswith(p) for p in LABEL_OPENINGS):
+        return "label"
+    if any(p in reply for p in SOURCE_NARRATION):
+        return "names_sources"
     return None
 
 

@@ -206,7 +206,6 @@
   function chatInto(parent, segments) {
     let paragraph = el("p");
     parent.append(paragraph);
-    const notes = [];
     (segments || []).forEach((seg) => {
       if (seg.type === "verse") {
         paragraph.append(...verseInline(seg.text, seg.label));
@@ -221,7 +220,6 @@
         } else {
           paragraph.append(el("span", "hadith-inline", "«" + seg.text + "»"));
         }
-        notes.push(seg);
       } else {
         String(seg.text).split("\n").forEach((part, i) => {
           if (i > 0) {
@@ -233,11 +231,6 @@
       }
     });
     parent.querySelectorAll("p").forEach((p) => { if (!p.textContent.trim()) p.remove(); });
-    notes.forEach((h) => {
-      const line = el("p", "hint", h.line + " · ");
-      line.append(externalLink(label("verify", "تحقق من المصدر"), h.url));
-      parent.append(line);
-    });
   }
 
   const renderers = {
@@ -287,9 +280,6 @@
     },
     answer(card, b) {
       const box = el("section", "block block-answer");
-      const tags = el("p", "tags");
-      tags.append(el("span", "tag tag-reviewed", b.badge), el("span", "tag", b.level));
-      box.append(tags);
       segmentsInto(box, b.summary);
       if (b.explain_simple && b.open === "explain") {
         const simple = el("div", "explain");
@@ -308,9 +298,10 @@
       card.append(box);
     },
     // «بالعقل والعلم»: the reviewed chain of reasoning, then the common objections, each folded under its question.
-    reasoning(card, b) {
+    reasoning(card, b, bare) {
       const box = section(card, b.title || label("reasoning_title", "بالعقل والعلم"), "block-reasoning");
       const sourceLine = (item, prefix) => {
+        if (bare) return "";
         const line = el("p", "hint", prefix ? prefix + " · " : "");
         line.append(externalLink([item.source, item.locator].filter(Boolean).join(" "), item.url));
         return line;
@@ -425,55 +416,120 @@
     });
   }
 
-  // The Quran and Sunnah texts of the approved answer, in one folded line under the reply. Most readers judge an
-  // answer by its sharia evidence (the team's field survey), so its references stay in sight: «النصوص الشرعية (3):
-  // [الطور: 35-36] · [الروم: 30] · حديث».
-  function compactSharia(card, b) {
-    const verses = b.verses || [];
-    const hadiths = b.hadiths || [];
-    if (!verses.length && !hadiths.length) return;
-    const refs = verses.map((v) => "[" + v.label + "]");
-    if (hadiths.length) refs.push(label("hadith_short", "حديث") + (hadiths.length > 1 ? " (" + hadiths.length + ")" : ""));
-    const box = el("details", "block sharia-compact");
-    box.classList.add("toggle");
-    box.append(summary(label("sharia_texts", "النصوص الشرعية") + " (" + (verses.length + hadiths.length) + "): "
-      + refs.join(" · "), "book"));
-    const inner = el("div", "block-sharia");
-    shariaInto(inner, b);
-    box.append(inner);
-    card.append(box);
+  // The sources of the answer, once each, as links in one folded line under the reply: its own sources, the sources
+  // of its reasoning, its tafsir, its hadiths and its scientific statements. The reply itself names none of them.
+  // A source's name without its page or section: «الدرر السنية: الموسوعة العقدية»، «U.S. Department of Energy, DOE
+  // Explains». A tafsir keeps its surah.
+  function shortName(name) {
+    const text = String(name || "").trim();
+    const colon = text.indexOf(":");
+    if (/^[A-Za-z]/.test(text)) return colon > 0 ? text.slice(0, colon) : text;
+    const cut = colon < 0 ? -1 : text.indexOf("، ", colon);
+    if (cut < 0) return text;
+    const rest = text.slice(cut + 2);
+    if (!rest.startsWith("سورة")) return text.slice(0, cut);
+    const next = rest.indexOf("، ");
+    return text.slice(0, cut + 2) + (next < 0 ? rest : rest.slice(0, next));
   }
 
-  // The sources, folded in one line that names the approved answer's own source: «المصادر (n): الإسلام سؤال وجواب…».
-  // They include the scientific sources with their degree, and the sources of the reviewed «بالعقل والعلم» layer
-  // the reply is built from, once each.
-  function compactSources(card, b, science, reasoning) {
+  function sourcesInto(card, blocks) {
     const items = [];
     const seen = new Set();
-    const add = (s) => {
-      if (!s.url || seen.has(s.url)) return;
-      seen.add(s.url);
-      items.push(s);
+    const add = (fullName, url) => {
+      const name = shortName(fullName);
+      const key = String(url || "").split("#")[0];
+      if (!name || !key || seen.has(key) || seen.has(name)) return;
+      seen.add(key);
+      seen.add(name);
+      items.push({ name, url });
     };
-    ((b && b.items) || []).forEach(add);
-    ((science && science.items) || []).forEach((s) => add({ name: s.source + " · " + s.degree_label, locator: "", url: s.url }));
-    ((reasoning && reasoning.steps) || []).concat((reasoning && reasoning.objections) || [])
-      .forEach((s) => add({ name: s.source, locator: s.locator, url: s.url }));
-    if (!items.length) return;
+    const of = (type) => blocks.filter((b) => b.type === type);
+    of("sources").forEach((b) => (b.items || []).forEach((s) => add(s.name, s.url)));
+    of("reasoning").forEach((b) => (b.steps || []).concat(b.objections || []).forEach((s) => add(s.source, s.url)));
+    of("sharia").forEach((b) => {
+      (b.tafsir || []).forEach((x) => add(String(x.label || "").split("المصدر: ").pop() || x.mufassir, x.url));
+      (b.hadiths || []).forEach((h) => add(String(h.line || "").replace(/^المصدر: /, "").split(" · ")[0], h.url));
+    });
+    of("science").forEach((b) => (b.items || []).forEach((s) => add(s.source, s.url)));
+    if (!items.length) return null;
     const box = el("details", "block sources-compact toggle");
-    box.append(summary(label("sources", "المصادر") + " (" + items.length + "): " + items[0].name, "link"));
+    box.append(summary(label("sources", "المصادر") + " (" + items.length + ")", "link"));
     const list = el("ul");
     items.forEach((s) => {
       const li = el("li");
-      li.append(externalLink([s.name, s.locator].filter(Boolean).join(" "), s.url));
+      li.append(externalLink(s.name, s.url));
       list.append(li);
     });
     box.append(list);
     card.append(box);
+    return box;
   }
 
-  // Blocks that go under «الأدلة والتفاصيل» when the approved card is shown without a conversational reply.
-  const DETAIL_BLOCKS = new Set(["reasoning", "science", "related"]);
+  // The reply arrives the way a person writes: word after word, quickly; verses, hadiths and folded parts appear
+  // whole. The text is in the page from the start (only its opacity changes), so the card never jumps and screen
+  // readers get all of it. The sources line fades in when the reply is done.
+  function typeIn(box, after) {
+    if (after) after.classList.add("tw-after");
+    const finish = () => { if (after) after.classList.add("in"); };
+    if (reducedMotion || !box) {
+      finish();
+      return;
+    }
+    const units = [];
+    const split = (parent) => {
+      Array.from(parent.childNodes).forEach((node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          const frag = document.createDocumentFragment();
+          node.textContent.split(/(\s+)/).forEach((part) => {
+            if (!part) return;
+            if (!part.trim()) {
+              frag.append(part);
+              return;
+            }
+            const word = el("span", "tw", part);
+            units.push(word);
+            frag.append(word);
+          });
+          node.replaceWith(frag);
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          node.classList.add("tw");
+          units.push(node);
+        }
+      });
+    };
+    Array.from(box.children).forEach((child) => {
+      if (child.tagName === "P") split(child);
+      else if (child.tagName === "OL" || child.tagName === "UL") {
+        Array.from(child.children).forEach((li) => {
+          li.classList.add("tw");
+          units.push(li);
+        });
+      } else {
+        child.classList.add("tw");
+        units.push(child);
+      }
+    });
+    if (!units.length) {
+      finish();
+      return;
+    }
+    const step = Math.max(14, Math.min(38, 2600 / units.length));  // two and a half seconds at most
+    const start = performance.now();
+    let shown = 0;
+    const reveal = (target) => {
+      while (shown < target) units[shown++].classList.add("in");
+      if (shown >= units.length) finish();
+    };
+    // A paused page (another tab, a locked phone) shows everything at once when the time is up.
+    const safety = window.setTimeout(() => reveal(units.length), units.length * step + 1500);
+    const tick = (now) => {
+      if (shown >= units.length) return;
+      reveal(Math.min(units.length, Math.floor((now - start) / step) + 1));
+      if (shown < units.length) window.requestAnimationFrame(tick);
+      else window.clearTimeout(safety);
+    };
+    window.requestAnimationFrame(tick);
+  }
 
   function renderResponse(data) {
     const card = el("article", "msg bot kind-" + (data.kind || "abstain"));
@@ -488,42 +544,23 @@
       blocks.forEach((block) => renderers[block.type] && renderers[block.type](card, block));
       appendToLog(card);
       scrollToEnd(card, "start");
+      if (data.kind !== "distress") typeIn(card.querySelector(".block-message"), null);  // support shows at once
       return;
     }
-    // One message: the reply (or the approved summary); then, one line each, its sharia texts, its sources and who
-    // reviewed it, and the follow-up questions; everything else folded one tap away.
+    // One message, like a conversation: the reply (or, without one, the approved summary, or its reasoning when the
+    // person asked to be convinced by reason), a line for a request the service never does, and one folded line
+    // with the links to the sources.
     const chat = blocks.find((b) => b.type === "chat");
-    const reasoning = blocks.find((b) => b.type === "reasoning");
-    const sources = blocks.find((b) => b.type === "sources");
-    const science = blocks.find((b) => b.type === "science");
-    const sharia = blocks.find((b) => b.type === "sharia");
-    const review = blocks.find((b) => b.type === "review");
-    // «اقنعني بالعقل» without a reply: the server puts the reviewed «بالعقل والعلم» layer first, shown as the answer.
     const lead = !chat && blocks[0].type === "reasoning" ? blocks[0] : null;
-    const folded = el("details", "card-details toggle");
-    folded.append(summary(chat ? (chat.toggle || "الإجابة المراجعة ومصادرها")
-      : lead ? label("full_answer", "الإجابة المراجعة كاملة") : label("evidence_details", "الأدلة والتفاصيل"), "layers"));
-    let foldedCount = 0;
-    if (lead) renderers.reasoning(card, lead);
+    const shown = chat ? ["chat", "message"] : lead ? ["message"] : ["answer", "message"];
+    if (lead) renderers.reasoning(card, lead, true);
     blocks.forEach((block) => {
-      const render = renderers[block.type];
-      if (!render || block === lead || block === review || block.type === "sources") return;
-      if (block === sharia && !lead) return;  // its own line below; with «اقنعني بالعقل» it stays folded
-      // With a reply (or the reasoning as the answer), the whole approved card is folded; notices stay above it.
-      const inFold = chat || lead ? !["chat", "notice", "message", "framing"].includes(block.type)
-        : DETAIL_BLOCKS.has(block.type);
-      render(inFold ? folded : card, block);
-      if (inFold) foldedCount += 1;
+      if (shown.includes(block.type) && renderers[block.type]) renderers[block.type](card, block);
     });
-    if (sharia && !lead) compactSharia(card, sharia);
-    if (sources || science || reasoning) compactSources(card, sources, science, reasoning);
-    if (review) {  // who reviewed it and how it was written: inside the approved card, under the reply
-      renderers.review(folded, review);
-      foldedCount += 1;
-    }
-    if (foldedCount) card.append(folded);
+    const sources = sourcesInto(card, blocks);
     appendToLog(card);
     scrollToEnd(card, "start");
+    typeIn(card.querySelector(".block-chat, .block-answer, .block-reasoning"), sources);
   }
 
   function renderNetworkError(text) {

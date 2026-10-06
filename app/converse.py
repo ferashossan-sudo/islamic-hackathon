@@ -14,11 +14,30 @@ from app import claude, gemini, quran
 from app.config import Settings, first
 from app.usage import log_event
 
-PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "converse_v2.md"
+PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "converse_v3.md"
 RULES = PROMPT_PATH.read_text(encoding="utf-8")
-PROMPT_VERSION = "converse_v2:" + hashlib.sha256(RULES.encode("utf-8")).hexdigest()[:12]
+PROMPT_VERSION = "converse_v3:" + hashlib.sha256(RULES.encode("utf-8")).hexdigest()[:12]
 MAX_HISTORY = 4
 MAX_HISTORY_CHARS = 1200  # a whole previous reply, so the model sees what it already said
+
+
+# General rules for weighing an apparent conflict between revelation, reason and science, restated from the
+# reviewed «بالعقل والعلم» layers of the approved answers (mostly from «بينات»، مركز أصول). The model applies them in
+# its own words to any form of a question; they carry no fact of their own.
+PRINCIPLES = (
+    "القطعي من الوحي والقطعي من العلم لا يتعارضان، لأن الوحي من الله الذي خلق الكون وهو العليم بسننه.",
+    "في كلٍّ من الوحي والعلم قطعي وظني: القطعي من أحدهما مقدَّم على الظني من الآخر، والظنيان إذا تعارضا طُلب لهما مرجِّح.",
+    "القطع في العلم التجريبي إنما يصح فيما قام على معطى حسي قاطع، ككروية الأرض؛ أما النماذج التي تفسّر الظواهر فدونه رتبة، والعلم يصححها باستمرار.",
+    "القرآن ثابت كله قطعاً، لكن دلالة آياته تتفاوت: منها ما لا يُتنازع في فهمه، ومنها ما يحتمل أكثر من معنى؛ فقطعية ثبوت النص لا تجعل كل معنى يُحمل عليه قطعياً. والسنة منها القطعي الثبوت وما دونه.",
+    "ما يوهم التعارض بين النص والعلم يرجع إلى خلل في فهم النص أو في تصور العلم، أو إلى جعل ظنٍّ علمي في منزلة الحقيقة؛ فقبل الحكم بالتعارض يُتثبت من ثلاثة: صحة النص، وصحة فهمه، وثبوت الأمر العلمي نفسه.",
+    "عدم العلم ليس علماً بالعدم، وسكوت النص عن شيء ليس نفياً له.",
+    "ما حدث بعد أن لم يكن لا بد له من محدِث.",
+    "هناك فرق بين المستحيل عقلاً، كاجتماع النقيضين، وما لم تجرِ به العادة؛ والمعجزات تخرق العادة ولا تخرق ضرورات العقل.",
+    "ليس عيباً في الدين أن يخطئ بعض أتباعه، بل يُرجع عند الحكم عليه إلى أحكامه نفسها.",
+    "يُنظر إلى الصورة كاملة لا إلى جزئية مقتطعة، وتُقرأ الآية كاملة في سياقها.",
+    "طريقة وصول الاعتقاد إلى الإنسان، كتقليد الآباء أو كثرة القائلين به، لا تحسم صحته؛ وإنما يُوزن كل معتقد بدليله.",
+    "الشيء قد يكون فيه نفع ومفسدة أعظم منه فيُنهى عنه، وقد يكون فيه ضرر ونفعه أكبر فيُؤذن فيه.",
+)
 
 
 class Reply(BaseModel):
@@ -63,6 +82,7 @@ def material(entry: dict) -> dict:
                     "text": " ".join(v.text for v in quran.lookup(ref))} for ref in entry.get("verses", [])],
         "hadiths": [{"placeholder": "{{h:" + str(i) + "}}", "text": h["text"]}
                     for i, h in enumerate(entry.get("hadiths", []), 1)],
+        "principles": list(PRINCIPLES),
     }
 
 
@@ -78,7 +98,7 @@ SCHEMA_ANTHROPIC = {"type": "object", "properties": {"reply": {"type": "string"}
                     "additionalProperties": False}
 
 
-VERIFY_RULES = (Path(__file__).resolve().parent / "prompts" / "verify_v1.md").read_text(encoding="utf-8")
+VERIFY_RULES = (Path(__file__).resolve().parent / "prompts" / "verify_v2.md").read_text(encoding="utf-8")
 VERIFY_SCHEMA_GEMINI = {"type": "OBJECT", "properties": {"unsupported": {"type": "ARRAY", "items": {"type": "STRING"}}},
                         "required": ["unsupported"]}
 

@@ -533,6 +533,11 @@ svg { display: block; }
   animation: lq-msg-in .5s var(--ease-out) backwards;
 }
 .msg.bot > * { margin: 0; }
+/* The reply typing in (app.js typeIn): its words fade in one after another; the sources line follows. */
+.tw { opacity: 0; transition: opacity .34s ease; }
+.tw.in { opacity: 1; }
+.tw-after { opacity: 0; transform: translateY(6px); transition: opacity .45s ease, transform .45s var(--ease-out); }
+.tw-after.in { opacity: 1; transform: none; }
 
 .typing { display: flex; align-items: center; gap: 12px; animation: lq-msg-in .4s var(--ease-out) .15s backwards; }
 .typing-dots {
@@ -869,4 +874,8 @@ p.verse-ref { margin: 0 0 10px; white-space: normal; }
   a { color: #000; text-decoration: underline; }
   a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 9pt; color: #333; word-break: break-all; }
   a[href^="tel:"]::after { content: ""; }
+}
+
+@media print {
+  .tw, .tw-after { opacity: 1 !important; transform: none !important; }
 }
