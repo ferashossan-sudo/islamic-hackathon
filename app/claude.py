@@ -1,8 +1,8 @@
 """Claude (Anthropic API) calls with a JSON-schema output: the router, the dialogue and the verifier.
 
-Claude Haiku 4.5 takes no effort setting (temperature 0 instead); Claude Sonnet 5.5 takes output_config.effort and no
-sampling parameters, thinks adaptively (low effort for chat), and gets the server-side refusal fallback. A refusal or a
-cut-off reply raises, and the caller falls back (Gemini, then the approved card or the lexical path).
+Claude Haiku 4.5 takes no effort setting; Claude Sonnet 5.5 takes output_config.effort, thinks adaptively (low effort
+for chat), and gets the server-side refusal fallback. The SDK (1.x) sends no sampling parameters to either model.
+A refusal or a cut-off reply raises, and the caller falls back (Gemini, then the approved card or the lexical path).
 """
 from functools import lru_cache
 
@@ -45,7 +45,7 @@ async def generate(key: str, model: str, system, payload: str, schema: dict, tim
         output_config["effort"] = "low"
         response = await client.beta.messages.create(**request, betas=[FALLBACK_BETA], fallbacks="default")
     else:
-        response = await client.messages.create(**request, temperature=0.0)
+        response = await client.messages.create(**request)
     if response.stop_reason in ("refusal", "max_tokens"):
         raise ValueError(response.stop_reason)
     text = next(b.text for b in response.content if b.type == "text")

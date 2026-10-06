@@ -44,11 +44,11 @@ def test_sonnet_gets_low_effort_the_refusal_fallback_and_no_temperature(monkeypa
     assert usage["usd"] == round((1000 * 2 + 100 * 10 + 9000 * 0.2) / 1_000_000, 6)
 
 
-def test_haiku_gets_temperature_zero_and_no_effort(monkeypatch):
+def test_haiku_gets_no_effort_and_no_sampling_parameters(monkeypatch):
     calls = fake_client(monkeypatch)
     asyncio.run(claude.generate("k", "claude-haiku-4-5", "rules", "{}", SCHEMA, 10, 600))
     sent = calls[0]
-    assert sent["temperature"] == 0.0
+    assert "temperature" not in sent
     assert "effort" not in sent["output_config"] and "betas" not in sent and "fallbacks" not in sent
 
 
