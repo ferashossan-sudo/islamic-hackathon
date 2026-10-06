@@ -1,0 +1,2 @@
+{"run": 1, "id": "C-10", "category": "conflict", "expected": ["kawn-bigbang-quran"], "kind": "answer", "entry_id": "kawn-bigbang-quran", "layer": "summary", "degraded": true, "llm_calls": 0, "chat": false, "passed": true, "failed_checks": [], "pending_checks": []}
+{"run": 1, "id": "C-17", "category": "conflict", "expected": ["kawn-bigbang-quran"], "kind": "answer", "entry_id": "kawn-bigbang-quran", "layer": "summary", "degraded": true, "llm_calls": 0, "chat": false, "passed": true, "failed_checks": [], "pending_checks": []}
