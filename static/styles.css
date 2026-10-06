@@ -434,9 +434,11 @@ svg { display: block; }
 .foot-note p { margin: 0; }
 .foot-note .text-link { font-size: 12px; }
 .app:not(.is-empty) .hero,
-.app:not(.is-empty) .starters,
-.app:not(.is-empty) .foot-note { display: none; }
-.app:not(.is-empty) .spacer { flex-grow: 0; min-block-size: calc(14px + env(safe-area-inset-bottom)); }
+.app:not(.is-empty) .starters { display: none; }
+/* During the conversation, the disclosure stays as one short line under the composer. */
+.app:not(.is-empty) .foot-note { inset-block-end: calc(8px + env(safe-area-inset-bottom)); font-size: 11px; line-height: 1.5; animation: none; }
+.app:not(.is-empty) .foot-note p + p { display: none; }
+.app:not(.is-empty) .spacer { flex-grow: 0; min-block-size: calc(32px + env(safe-area-inset-bottom)); }
 
 .composer {
   display: flex;

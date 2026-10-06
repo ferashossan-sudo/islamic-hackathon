@@ -133,10 +133,11 @@ def load_glossary() -> list[dict]:
 
 
 def glossary_block(message: str) -> list[dict]:
-    """R6 (translation and localisation): the approved English meaning of a religious term the person used."""
+    """R6 (translation and localisation): the approved English meaning of a religious term the person used.
+    Only items the team's sharia reviewer approved (approved_by set) are shown; the others wait for review."""
     words = set(re.findall(r"[a-z']+", message.lower().replace("’", "'")))
     items = [{"term_en": t["term_en"], "term_ar": t["term_ar"], "definition_en": t["definition_en"], "url": t["url"]}
-             for t in load_glossary() if words & set(t["match"])]
+             for t in load_glossary() if t.get("approved_by") and words & set(t["match"])]
     if not items:
         return []
     return [{"type": "glossary", "title": "From the Encyclopedia of Translated Islamic Terms", "items": items[:3]}]

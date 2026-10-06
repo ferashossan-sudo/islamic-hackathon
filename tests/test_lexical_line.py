@@ -173,9 +173,14 @@ def test_api_answer_roundtrip(loaded):
 
 
 def test_non_arabic_term_gets_approved_glossary_meaning(monkeypatch):
-    monkeypatch.setattr(pipeline, "load_glossary", lambda: [{
-        "key": "jihad", "match": ["jihad"], "term_en": "Jihad", "term_ar": "الجهاد",
-        "definition_en": "A test definition.", "url": "https://terminologyenc.com/en/browse/term/1"}])
+    item = {"key": "jihad", "match": ["jihad"], "term_en": "Jihad", "term_ar": "الجهاد",
+            "definition_en": "A test definition.", "url": "https://terminologyenc.com/en/browse/term/1",
+            "approved_by": "reviewer"}
+    monkeypatch.setattr(pipeline, "load_glossary", lambda: [item])
     r = ask("What does jihad mean in Islam?")[1]
     assert r.kind == "non_arabic"
     assert r.blocks[0]["type"] == "glossary" and r.blocks[0]["items"][0]["term_ar"] == "الجهاد"
+    # A meaning the sharia reviewer has not approved is never shown.
+    monkeypatch.setattr(pipeline, "load_glossary", lambda: [{**item, "approved_by": None}])
+    r = ask("What does jihad mean in Islam?")[1]
+    assert r.kind == "non_arabic" and all(b["type"] != "glossary" for b in r.blocks)

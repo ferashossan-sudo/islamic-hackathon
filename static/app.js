@@ -448,7 +448,8 @@
     of("reasoning").forEach((b) => (b.steps || []).concat(b.objections || []).forEach((s) => add(s.source, s.url)));
     of("sharia").forEach((b) => {
       (b.tafsir || []).forEach((x) => add(String(x.label || "").split("المصدر: ").pop() || x.mufassir, x.url));
-      (b.hadiths || []).forEach((h) => add(String(h.line || "").replace(/^المصدر: /, "").split(" · ")[0], h.url));
+      // a hadith keeps its grade: «صحيح البخاري، رقم 3326 · الدرجة: صحيح»
+      (b.hadiths || []).forEach((h) => add(String(h.line || "").replace(/^المصدر: /, "").split(" · المحدّث")[0], h.url));
     });
     of("science").forEach((b) => (b.items || []).forEach((s) => add(s.source, s.url)));
     if (!items.length) return null;
