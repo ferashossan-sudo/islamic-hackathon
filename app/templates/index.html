@@ -2,59 +2,144 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="light dark">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0E0C09">
 <meta name="referrer" content="no-referrer">
 <title>ليطمئنّ قلبي</title>
+<link rel="icon" href="/static/logo.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/static/styles.css">
 <script src="/static/app.js" defer></script>
 </head>
 <body>
-<header class="top">
-  <div class="top-row">
-    <h1 class="brand">ليطمئنّ قلبي</h1>
-    <span class="top-actions">
-      <button type="button" id="save-pdf" class="link-button">{{l:save_pdf}}</button>
-      <button type="button" id="clear" class="link-button">{{l:clear_chat}}</button>
-    </span>
-  </div>
-  <p class="print-only print-note">{{l:print_note}} <span id="print-date"></span></p>
-  <p class="disclosure-short">{{t:disclosure_header}}</p>
-  <nav class="top-links">
-    <a href="#privacy" data-open="privacy">{{l:privacy_link}}</a>
-    <a href="#support" data-open="support">{{l:support_link}}</a>
-  </nav>
-</header>
 
-<main id="main">
-  <div id="log" class="log" role="log" aria-live="polite" aria-busy="false">
-    <article class="msg bot welcome">
+<section id="onboarding" class="onb" aria-label="ليطمئنّ قلبي">
+  <button type="button" id="splash" class="splash" aria-label="ليطمئنّ قلبي، ابدأ">
+    <span class="splash-inner">
+      <span class="splash-line"></span>
+      <span class="splash-mark">
+        <span class="splash-glow" aria-hidden="true"></span>
+        <svg class="heart" viewBox="0 0 100 92.4" width="132" height="122" aria-hidden="true">
+          <defs>
+            <linearGradient id="lq-heart" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F3EBD5"></stop><stop offset=".55" stop-color="#DFCDAC"></stop><stop offset="1" stop-color="#B8A082"></stop></linearGradient>
+            <linearGradient id="lq-sheen" x1="0" y1="0" x2="1" y2=".25"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0"></stop><stop offset=".5" stop-color="#FFFFFF" stop-opacity=".6"></stop><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"></stop></linearGradient>
+            <clipPath id="lq-clip"><path clip-rule="evenodd" d="M52.8 91.7C52.9 91 53 89.8 52.9 88.8C52.5 84.6 50.9 80.8 47.8 77.2C46.2 75.4 43.7 73 41.2 71.2C38.7 69.2 33 65.4 27.2 61.9C18.9 56.7 13.9 53.1 10.2 49.4C4.7 43.9 1.8 38.6 0.8 32.5C0.6 31.2 0.5 28 0.7 26.6C1.4 19.6 4.7 12.6 9.4 8.2C13.8 4 19.2 1.5 25.5 0.7C26.9 0.5 29.2 0.5 30.5 0.7C31.8 0.9 33.6 1.3 34.3 1.5C34.6 1.6 35 1.8 35.2 1.8C38.4 3 41.8 5.5 44.1 8.4C47.2 12.3 49.2 17.3 49.5 21.9C49.5 23.4 49.6 23.5 49.8 22.6C49.8 22.2 50 21.4 50.1 20.9C52.8 11.6 62.2 3.1 71.6 1.5C77 0.6 83.4 2.3 88.6 6C90.2 7.1 90.6 7.4 92.1 8.9C100.9 17.7 101.9 31.3 94.5 44.3C94 45.2 93.5 46 93.4 46.1C93.3 46.3 93 46.8 92.7 47.3C89.9 51.5 85.6 56.1 80.7 59.7C79.7 60.4 77.2 62.2 75.8 63.1C70.6 66.5 68.9 67.7 66.4 69.8C65 70.9 62.9 73 62 74.1C58 78.6 56.2 81.8 53.9 88.8C53 91.4 52.7 92.3 52.8 91.7ZM54.7 82.6C57.4 74.1 62.1 67.8 69.4 62.5C70.7 61.6 72.5 60.3 74.7 59C80.5 55.4 82.6 53.8 85.2 51.3C87 49.4 87.7 48.6 88.9 46.8C91 43.7 92.3 40.5 92.9 36.5C93 35.7 93.1 34.9 93.1 33C93 30.6 93 30.4 92.7 28.8C92 24.5 90.4 20.9 87.9 18C84 13.3 78.2 10.4 71.8 9.9C70.4 9.8 68.6 9.9 67 10.1C64 10.7 60.8 12.3 58.4 14.5C57 15.9 55.4 18.1 54.7 19.8C52.8 24.5 53.7 29.5 57 32.9C59.1 34.9 61.4 35.9 66.1 36.9C68.9 37.5 70.5 38.2 71.8 39.3C73.7 41.2 74.3 44 73.1 46.5C72.3 48.3 70 50.5 67.7 51.6C67 52 65.4 52.5 65 52.6L64.6 52.7L65.1 52.4C65.6 52 66.1 51.3 66.4 50.6C66.7 50.1 66.7 50 66.7 49.2C66.7 48.3 66.7 48.2 66.4 47.5C65.5 45.7 64.2 44.5 60.5 42C55.1 38.3 52.6 35.8 50.9 32.2C50 30.1 49.6 28.6 49.5 25.7C49.4 23.8 49.3 23.1 48.6 21.3C46.3 14.3 40.9 9.6 34.1 8.7C32.9 8.5 30.4 8.5 29.1 8.6C26.9 8.8 24.5 9.4 22.6 10.2C16.1 12.8 11.7 17.7 10.2 23.9C9.7 25.9 9.6 26.7 9.7 29C9.7 31.1 9.8 31.9 10.3 33.8C11.2 37.4 13.4 41.3 16.4 44.4C19.7 47.8 22.8 50.2 30.8 55.2C35.7 58.2 38.6 60.2 40.8 62.1C42.1 63.2 44.4 65.4 45.1 66.1C45.4 66.5 45.9 67 46.1 67.3C47.4 68.7 49.4 71.4 50.5 73.3C52.4 76.6 53.7 80.1 54.1 82.9C54.2 83.4 54.3 83.8 54.3 83.8C54.3 83.8 54.5 83.2 54.7 82.6Z"></path></clipPath>
+          </defs>
+          <path class="heart-fill" fill="url(#lq-heart)" fill-rule="evenodd" d="M52.8 91.7C52.9 91 53 89.8 52.9 88.8C52.5 84.6 50.9 80.8 47.8 77.2C46.2 75.4 43.7 73 41.2 71.2C38.7 69.2 33 65.4 27.2 61.9C18.9 56.7 13.9 53.1 10.2 49.4C4.7 43.9 1.8 38.6 0.8 32.5C0.6 31.2 0.5 28 0.7 26.6C1.4 19.6 4.7 12.6 9.4 8.2C13.8 4 19.2 1.5 25.5 0.7C26.9 0.5 29.2 0.5 30.5 0.7C31.8 0.9 33.6 1.3 34.3 1.5C34.6 1.6 35 1.8 35.2 1.8C38.4 3 41.8 5.5 44.1 8.4C47.2 12.3 49.2 17.3 49.5 21.9C49.5 23.4 49.6 23.5 49.8 22.6C49.8 22.2 50 21.4 50.1 20.9C52.8 11.6 62.2 3.1 71.6 1.5C77 0.6 83.4 2.3 88.6 6C90.2 7.1 90.6 7.4 92.1 8.9C100.9 17.7 101.9 31.3 94.5 44.3C94 45.2 93.5 46 93.4 46.1C93.3 46.3 93 46.8 92.7 47.3C89.9 51.5 85.6 56.1 80.7 59.7C79.7 60.4 77.2 62.2 75.8 63.1C70.6 66.5 68.9 67.7 66.4 69.8C65 70.9 62.9 73 62 74.1C58 78.6 56.2 81.8 53.9 88.8C53 91.4 52.7 92.3 52.8 91.7ZM54.7 82.6C57.4 74.1 62.1 67.8 69.4 62.5C70.7 61.6 72.5 60.3 74.7 59C80.5 55.4 82.6 53.8 85.2 51.3C87 49.4 87.7 48.6 88.9 46.8C91 43.7 92.3 40.5 92.9 36.5C93 35.7 93.1 34.9 93.1 33C93 30.6 93 30.4 92.7 28.8C92 24.5 90.4 20.9 87.9 18C84 13.3 78.2 10.4 71.8 9.9C70.4 9.8 68.6 9.9 67 10.1C64 10.7 60.8 12.3 58.4 14.5C57 15.9 55.4 18.1 54.7 19.8C52.8 24.5 53.7 29.5 57 32.9C59.1 34.9 61.4 35.9 66.1 36.9C68.9 37.5 70.5 38.2 71.8 39.3C73.7 41.2 74.3 44 73.1 46.5C72.3 48.3 70 50.5 67.7 51.6C67 52 65.4 52.5 65 52.6L64.6 52.7L65.1 52.4C65.6 52 66.1 51.3 66.4 50.6C66.7 50.1 66.7 50 66.7 49.2C66.7 48.3 66.7 48.2 66.4 47.5C65.5 45.7 64.2 44.5 60.5 42C55.1 38.3 52.6 35.8 50.9 32.2C50 30.1 49.6 28.6 49.5 25.7C49.4 23.8 49.3 23.1 48.6 21.3C46.3 14.3 40.9 9.6 34.1 8.7C32.9 8.5 30.4 8.5 29.1 8.6C26.9 8.8 24.5 9.4 22.6 10.2C16.1 12.8 11.7 17.7 10.2 23.9C9.7 25.9 9.6 26.7 9.7 29C9.7 31.1 9.8 31.9 10.3 33.8C11.2 37.4 13.4 41.3 16.4 44.4C19.7 47.8 22.8 50.2 30.8 55.2C35.7 58.2 38.6 60.2 40.8 62.1C42.1 63.2 44.4 65.4 45.1 66.1C45.4 66.5 45.9 67 46.1 67.3C47.4 68.7 49.4 71.4 50.5 73.3C52.4 76.6 53.7 80.1 54.1 82.9C54.2 83.4 54.3 83.8 54.3 83.8C54.3 83.8 54.5 83.2 54.7 82.6Z"></path>
+          <path class="heart-draw" pathLength="1" fill="none" d="M52.8 91.7C52.9 91 53 89.8 52.9 88.8C52.5 84.6 50.9 80.8 47.8 77.2C46.2 75.4 43.7 73 41.2 71.2C38.7 69.2 33 65.4 27.2 61.9C18.9 56.7 13.9 53.1 10.2 49.4C4.7 43.9 1.8 38.6 0.8 32.5C0.6 31.2 0.5 28 0.7 26.6C1.4 19.6 4.7 12.6 9.4 8.2C13.8 4 19.2 1.5 25.5 0.7C26.9 0.5 29.2 0.5 30.5 0.7C31.8 0.9 33.6 1.3 34.3 1.5C34.6 1.6 35 1.8 35.2 1.8C38.4 3 41.8 5.5 44.1 8.4C47.2 12.3 49.2 17.3 49.5 21.9C49.5 23.4 49.6 23.5 49.8 22.6C49.8 22.2 50 21.4 50.1 20.9C52.8 11.6 62.2 3.1 71.6 1.5C77 0.6 83.4 2.3 88.6 6C90.2 7.1 90.6 7.4 92.1 8.9C100.9 17.7 101.9 31.3 94.5 44.3C94 45.2 93.5 46 93.4 46.1C93.3 46.3 93 46.8 92.7 47.3C89.9 51.5 85.6 56.1 80.7 59.7C79.7 60.4 77.2 62.2 75.8 63.1C70.6 66.5 68.9 67.7 66.4 69.8C65 70.9 62.9 73 62 74.1C58 78.6 56.2 81.8 53.9 88.8C53 91.4 52.7 92.3 52.8 91.7Z"></path>
+          <path class="heart-draw heart-draw-2" pathLength="1" fill="none" d="M54.7 82.6C57.4 74.1 62.1 67.8 69.4 62.5C70.7 61.6 72.5 60.3 74.7 59C80.5 55.4 82.6 53.8 85.2 51.3C87 49.4 87.7 48.6 88.9 46.8C91 43.7 92.3 40.5 92.9 36.5C93 35.7 93.1 34.9 93.1 33C93 30.6 93 30.4 92.7 28.8C92 24.5 90.4 20.9 87.9 18C84 13.3 78.2 10.4 71.8 9.9C70.4 9.8 68.6 9.9 67 10.1C64 10.7 60.8 12.3 58.4 14.5C57 15.9 55.4 18.1 54.7 19.8C52.8 24.5 53.7 29.5 57 32.9C59.1 34.9 61.4 35.9 66.1 36.9C68.9 37.5 70.5 38.2 71.8 39.3C73.7 41.2 74.3 44 73.1 46.5C72.3 48.3 70 50.5 67.7 51.6C67 52 65.4 52.5 65 52.6L64.6 52.7L65.1 52.4C65.6 52 66.1 51.3 66.4 50.6C66.7 50.1 66.7 50 66.7 49.2C66.7 48.3 66.7 48.2 66.4 47.5C65.5 45.7 64.2 44.5 60.5 42C55.1 38.3 52.6 35.8 50.9 32.2C50 30.1 49.6 28.6 49.5 25.7C49.4 23.8 49.3 23.1 48.6 21.3C46.3 14.3 40.9 9.6 34.1 8.7C32.9 8.5 30.4 8.5 29.1 8.6C26.9 8.8 24.5 9.4 22.6 10.2C16.1 12.8 11.7 17.7 10.2 23.9C9.7 25.9 9.6 26.7 9.7 29C9.7 31.1 9.8 31.9 10.3 33.8C11.2 37.4 13.4 41.3 16.4 44.4C19.7 47.8 22.8 50.2 30.8 55.2C35.7 58.2 38.6 60.2 40.8 62.1C42.1 63.2 44.4 65.4 45.1 66.1C45.4 66.5 45.9 67 46.1 67.3C47.4 68.7 49.4 71.4 50.5 73.3C52.4 76.6 53.7 80.1 54.1 82.9C54.2 83.4 54.3 83.8 54.3 83.8C54.3 83.8 54.5 83.2 54.7 82.6Z"></path>
+          <g clip-path="url(#lq-clip)"><rect class="heart-sheen" x="104" y="-6" width="46" height="106" fill="url(#lq-sheen)"></rect></g>
+        </svg>
+      </span>
+      <span class="splash-title">ليطمئنّ قلبي</span>
+      <span class="splash-verse"><span class="orn" aria-hidden="true">﴿</span> {{q:splash}} <span class="orn" aria-hidden="true">﴾</span></span>
+      <span class="splash-ref">{{q:ref}}</span>
+      <span class="splash-line splash-line-end"></span>
+    </span>
+  </button>
+
+  <div id="steps" class="steps" hidden>
+    <div id="step-welcome" class="step">
+      <p class="step-brand">ليطمئنّ قلبي</p>
+      <div class="step-body">
+        <h2 class="step-title">أسئلتك الكبيرة<br>تستحق إجابة هادئة.</h2>
+        <ul class="points">
+          <li><span class="point-num">٠١</span><div><p class="point-title">اسأل بحرية</p><p class="point-text">سؤال يشغلك، أو فضول يلحّ عليك، أو تساؤل لم تجد من تحدّثه عنه. دون اسم ولا حساب.</p></div></li>
+          <li><span class="point-num">٠٢</span><div><p class="point-title">إجابات مراجعة</p><p class="point-text">يجيبك «ليطمئنّ قلبي» من إجابات راجعها المراجع الشرعي للفريق، ويعرض لك مصدر كل معلومة.</p></div></li>
+          <li><span class="point-num">٠٣</span><div><p class="point-title">لا تخمين</p><p class="point-text">إن لم يجد جواباً موثوقاً، يخبرك بذلك بوضوح.</p></div></li>
+        </ul>
+      </div>
+    </div>
+
+    <div id="step-consent" class="step" hidden>
+      <button type="button" id="consent-back" class="back">رجوع</button>
+      <div class="step-body">
+        <h2 class="step-title step-title-sm">قبل أن نبدأ</h2>
+        <div class="checks">
+          <label class="check"><input type="checkbox" id="c-age"><span class="check-box" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14"><path pathLength="1" d="M3 8.5l3.2 3L13 5"></path></svg></span><span class="check-text"><span class="check-title">عمري 16 سنة فأكثر</span></span></label>
+          <label class="check"><input type="checkbox" id="c-ai"><span class="check-box" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14"><path pathLength="1" d="M3 8.5l3.2 3L13 5"></path></svg></span><span class="check-text"><span class="check-title">أفهم أن «ليطمئنّ قلبي» يعمل بالذكاء الاصطناعي</span><span class="check-sub">وليس شيخاً ولا مفتياً.</span></span></label>
+          <label class="check"><input type="checkbox" id="c-privacy"><span class="check-box" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14"><path pathLength="1" d="M3 8.5l3.2 3L13 5"></path></svg></span><span class="check-text"><span class="check-title">اطّلعت على الخصوصية</span><span class="check-sub">تُرسل رسائلي إلى مزوّد ذكاء اصطناعي لفهمها، ولا تُحفظ المحادثات على خوادم المشروع.</span></span></label>
+        </div>
+        <button type="button" class="text-link" data-sheet="privacy">اقرأ الخصوصية</button>
+      </div>
+    </div>
+
+    <div class="dots" aria-hidden="true"><span class="dot dot-1"></span><span class="dot dot-2"></span></div>
+    <button type="button" id="onb-next" class="primary">متابعة</button>
+  </div>
+</section>
+
+<div id="app" class="app is-empty" hidden>
+  <header class="top">
+    <h1 class="brand"><img src="/static/logo.svg" alt="" class="brand-logo" width="26" height="24">ليطمئنّ قلبي</h1>
+    <button type="button" id="menu-open" class="icon-button glass" aria-label="القائمة" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg></button>
+  </header>
+  <p class="print-only print-note">{{l:print_note}} <span id="print-date"></span></p>
+
+  <main id="main" class="main">
+    <div id="log" class="log" role="log" aria-live="polite" aria-busy="false"></div>
+  </main>
+
+  <div class="dock">
+    <h2 class="hero" id="hero">ما الذي يشغل بالك؟</h2>
+    <form id="composer" class="composer glass" novalidate>
+      <div class="composer-field">
+        <label for="message" class="visually-hidden">{{l:input_placeholder}}</label>
+        <textarea id="message" name="message" rows="1" maxlength="4000" placeholder="{{l:input_placeholder}}" autocomplete="off" enterkeyhint="send"></textarea>
+        <span id="counter" class="counter" dir="ltr">0 / 800</span>
+      </div>
+      <button type="submit" id="send" class="send" aria-label="{{l:send}}" disabled><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="m5 12 7-7 7 7"></path><path d="M12 19V5"></path></svg></button>
+    </form>
+    <div id="starters" class="starters"></div>
+  </div>
+  <div class="spacer" aria-hidden="true"></div>
+  <div class="foot-note">
+    <p>{{t:disclosure_header}}</p>
+    <p>لمن بلغ 16 سنة فأكثر · دون حساب · <button type="button" class="text-link" data-sheet="privacy">{{l:privacy_link}}</button></p>
+  </div>
+</div>
+
+<div id="sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
+  <button type="button" class="sheet-overlay" data-close tabindex="-1" aria-label="{{l:close}}"></button>
+  <div class="sheet-panel glass">
+    <div class="sheet-grip" aria-hidden="true"></div>
+    <div class="sheet-head">
+      <h2 id="sheet-title" class="sheet-title"></h2>
+      <button type="button" class="icon-button" data-close aria-label="{{l:close}}"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
+    </div>
+
+    <div class="panel" data-panel="menu" data-title="القائمة" hidden>
+      <button type="button" class="menu-item" id="m-new"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>{{l:clear_chat}}</button>
+      <button type="button" class="menu-item" id="m-pdf"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="M12 18v-6"></path><path d="m9 15 3 3 3-3"></path></svg>{{l:save_pdf}}</button>
+      <button type="button" class="menu-item" data-sheet="about"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>عن «ليطمئنّ قلبي»</button>
+      <button type="button" class="menu-item" data-sheet="privacy"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path></svg>{{l:privacy_link}}</button>
+      <button type="button" class="menu-item" data-sheet="support"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"></path></svg>{{l:support_link}}</button>
+    </div>
+
+    <div class="panel prose" data-panel="about" data-title="عن «ليطمئنّ قلبي»" hidden>
       <p class="disclosure-full">{{t:disclosure}}</p>
       {{p:welcome}}
-    </article>
-  </div>
+      <p class="hint">{{f:0}} · {{f:1}} <bdi>{{v:version}}</bdi></p>
+    </div>
 
-  <section class="info">
-    <details id="privacy">
-      <summary>{{l:privacy_link}}</summary>
+    <div class="panel prose" id="privacy" data-panel="privacy" data-title="{{l:privacy_link}}" hidden>
       {{ulh:privacy_section}}
-    </details>
-    <details id="support">
-      <summary>{{l:support_link}}</summary>
-      {{ul:distress_contacts}}
-    </details>
-  </section>
+    </div>
 
-  <footer class="foot">
-    <span>{{f:0}}</span> · <span>{{f:1}} <bdi>{{v:version}}</bdi></span> · <a href="#privacy" data-open="privacy">{{f:2}}</a>
-  </footer>
-</main>
+    <div class="panel" id="support" data-panel="support" data-title="{{l:support_link}}" hidden>
+      <div class="contacts">
+        {{calls:distress_contacts}}
+      </div>
+    </div>
 
-<form id="composer" class="composer" novalidate>
-  <label for="message" class="visually-hidden">{{l:input_placeholder}}</label>
-  <textarea id="message" name="message" rows="1" maxlength="4000" placeholder="{{l:input_placeholder}}" autocomplete="off" enterkeyhint="send"></textarea>
-  <button type="submit" id="send">{{l:send}}</button>
-  <p id="counter" class="counter" aria-live="polite"></p>
-</form>
+    <div class="panel" data-panel="clear" data-title="{{l:clear_chat}}" hidden>
+      <p class="hint">{{l:clear_chat_confirm}}</p>
+      <div class="confirm-row">
+        <button type="button" id="confirm-clear" class="danger">{{l:confirm_clear}}</button>
+        <button type="button" class="secondary" data-close>{{l:cancel}}</button>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>

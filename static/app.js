@@ -7,7 +7,9 @@
   const input = document.getElementById("message");
   const sendButton = document.getElementById("send");
   const counter = document.getElementById("counter");
-  const clearButton = document.getElementById("clear");
+  const app = document.getElementById("app");
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const STARTERS = 4;
 
   const mode = new URLSearchParams(window.location.search).get("mode") === "offline" ? "offline" : "";
   const context = { prev_entry_id: null, recent: [], repeat_count: 0 };
@@ -55,12 +57,11 @@
     })
     .catch(() => {});
 
-  // Suggested questions under the welcome message: approved entries marked as featured.
+  // Suggested questions under the empty composer: approved entries marked as featured, most asked first.
   function renderFeatured(items) {
-    const welcome = document.querySelector(".msg.welcome");
-    if (!welcome || !items.length) return;
-    const box = el("div", "block block-related featured");
-    items.forEach((item) => {
+    const box = document.getElementById("starters");
+    if (!box) return;
+    items.slice(0, STARTERS).forEach((item) => {
       const chip = el("button", "chip", item.question);
       chip.type = "button";
       chip.addEventListener("click", () => {
@@ -69,7 +70,55 @@
       });
       box.append(chip);
     });
-    welcome.append(box);
+  }
+
+  // Outline icons (24×24, stroke), built as SVG nodes: no markup from strings.
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const ICONS = {
+    book: ["M12 7v14", "M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"],
+    link: ["M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71", "M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"],
+    layers: ["M12 2 2 7l10 5 10-5-10-5z", "m2 17 10 5 10-5", "m2 12 10 5 10-5"],
+    text: ["M17 6.1H3", "M21 12.1H3", "M15.1 18H3"],
+    retry: ["M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8", "M21 3v5h-5"],
+  };
+
+  function icon(name, size) {
+    const svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("width", String(size || 15));
+    svg.setAttribute("height", String(size || 15));
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("class", "icon");
+    (ICONS[name] || []).forEach((d) => {
+      const path = document.createElementNS(SVG_NS, "path");
+      path.setAttribute("d", d);
+      svg.append(path);
+    });
+    return svg;
+  }
+
+  // The one-line summary of a folded part: an icon, the text (cut with an ellipsis until opened), a chevron in CSS.
+  function summary(text, iconName) {
+    const node = el("summary");
+    if (iconName) node.append(icon(iconName));
+    node.append(el("span", "sum-text", text));
+    return node;
+  }
+
+  // A verse inside text: «﴿…﴾ [البقرة: 255]», the ornate brackets in the accent color.
+  function verseInline(text, ref) {
+    const verse = el("span", "verse-inline");
+    verse.append(el("span", "orn", "﴿"), text, el("span", "orn", "﴾"));
+    return [verse, " ", el("bdi", "verse-ref", "[" + ref + "]")];
+  }
+
+  function setEmpty(empty) {
+    app.classList.toggle("is-empty", empty);
+  }
+
+  function appendToLog(node) {
+    log.append(node);
+    setEmpty(false);
   }
 
   function label(key, fallback) {
@@ -102,16 +151,15 @@
     });
   }
 
-  function scrollToEnd(node) {
-    const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    node.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "end" });
+  function scrollToEnd(node, block) {
+    node.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: block || "end" });
   }
 
   function addUserMessage(text) {
     const card = el("article", "msg user");
     card.dir = "auto";
     paragraphs(card, text);
-    log.append(card);
+    appendToLog(card);
     scrollToEnd(card);
   }
 
@@ -129,7 +177,7 @@
     parent.append(paragraph);
     (segments || []).forEach((seg) => {
       if (seg.type === "verse") {
-        paragraph.append(el("span", "verse-inline", "﴿" + seg.text + "﴾"), " ", el("bdi", "verse-ref", "[" + seg.label + "]"));
+        paragraph.append(...verseInline(seg.text, seg.label));
         return;
       }
       String(seg.text).split("\n").forEach((part, i) => {
@@ -161,12 +209,12 @@
     const notes = [];
     (segments || []).forEach((seg) => {
       if (seg.type === "verse") {
-        paragraph.append(el("span", "verse-inline", "﴿" + seg.text + "﴾"), " ", el("bdi", "verse-ref", "[" + seg.label + "]"));
+        paragraph.append(...verseInline(seg.text, seg.label));
       } else if (seg.type === "hadith") {
         if (seg.text.length > LONG_HADITH) {
           // A long hadith folds below the sentence instead of breaking it; nothing is cut from its text.
-          const box = el("details", "hadith-long");
-          box.append(el("summary", "", label("hadith_full", "نص الحديث كاملاً")), el("p", "hadith-inline", "«" + seg.text + "»"));
+          const box = el("details", "hadith-long toggle");
+          box.append(summary(label("hadith_full", "نص الحديث كاملاً"), "text"), el("p", "hadith-inline", "«" + seg.text + "»"));
           parent.append(box);
           paragraph = el("p");
           parent.append(paragraph);
@@ -255,9 +303,9 @@
         card.append(box);
         return;
       }
-      const full = el("details", "full-answer");
+      const full = el("details", "full-answer toggle");
       if (b.open === "body") full.open = true;
-      full.append(el("summary", null, label("read_full", "اقرأ الإجابة كاملة")));
+      full.append(summary(label("read_full", "اقرأ الإجابة كاملة"), "text"));
       segmentsInto(full, b.body);
       box.append(full);
       card.append(box);
@@ -356,7 +404,9 @@
   // The verses (mushaf text with their reference), tafsir summaries and hadiths of the approved answer.
   function shariaInto(box, b) {
     (b.verses || []).forEach((v) => {
-      box.append(el("p", "verse", "﴿" + v.text + "﴾"), el("p", "verse-ref", "[" + v.label + "]"));
+      const verse = el("p", "verse");
+      verse.append(el("span", "orn", "﴿"), v.text, el("span", "orn", "﴾"));
+      box.append(verse, el("p", "verse-ref", "[" + v.label + "]"));
     });
     (b.tafsir || []).forEach((t) => {
       const item = el("div", "tafsir");
@@ -388,8 +438,9 @@
     const refs = verses.map((v) => "[" + v.label + "]");
     if (hadiths.length) refs.push(label("hadith_short", "حديث") + (hadiths.length > 1 ? " (" + hadiths.length + ")" : ""));
     const box = el("details", "block sharia-compact");
-    box.append(el("summary", null, label("sharia_texts", "النصوص الشرعية") + " (" + (verses.length + hadiths.length) + "): "
-      + refs.join(" · ")));
+    box.classList.add("toggle");
+    box.append(summary(label("sharia_texts", "النصوص الشرعية") + " (" + (verses.length + hadiths.length) + "): "
+      + refs.join(" · "), "book"));
     const inner = el("div", "block-sharia");
     shariaInto(inner, b);
     box.append(inner);
@@ -412,8 +463,8 @@
     ((reasoning && reasoning.steps) || []).concat((reasoning && reasoning.objections) || [])
       .forEach((s) => add({ name: s.source, locator: s.locator, url: s.url }));
     if (!items.length) return;
-    const box = el("details", "block sources-compact");
-    box.append(el("summary", null, label("sources", "المصادر") + " (" + items.length + "): " + items[0].name));
+    const box = el("details", "block sources-compact toggle");
+    box.append(summary(label("sources", "المصادر") + " (" + items.length + "): " + items[0].name, "link"));
     const list = el("ul");
     items.forEach((s) => {
       const li = el("li");
@@ -457,8 +508,8 @@
     if (!blocks.some((b) => b.type === "answer")) {
       // Referrals, abstentions, support: shown as they come.
       blocks.forEach((block) => renderers[block.type] && renderers[block.type](card, block));
-      log.append(card);
-      scrollToEnd(card);
+      appendToLog(card);
+      scrollToEnd(card, "start");
       return;
     }
     // One message: the reply (or the approved summary); then, one line each, its sharia texts, its sources and who
@@ -471,9 +522,9 @@
     const review = blocks.find((b) => b.type === "review");
     // «اقنعني بالعقل» without a reply: the server puts the reviewed «بالعقل والعلم» layer first, shown as the answer.
     const lead = !chat && blocks[0].type === "reasoning" ? blocks[0] : null;
-    const folded = el("details", "card-details");
-    folded.append(el("summary", null, chat ? (chat.toggle || "الإجابة المراجعة ومصادرها")
-      : lead ? label("full_answer", "الإجابة المراجعة كاملة") : label("evidence_details", "الأدلة والتفاصيل")));
+    const folded = el("details", "card-details toggle");
+    folded.append(summary(chat ? (chat.toggle || "الإجابة المراجعة ومصادرها")
+      : lead ? label("full_answer", "الإجابة المراجعة كاملة") : label("evidence_details", "الأدلة والتفاصيل"), "layers"));
     let foldedCount = 0;
     if (lead) renderers.reasoning(card, lead);
     blocks.forEach((block) => {
@@ -491,38 +542,56 @@
     if (review) renderers.review(card, review);
     if (!lead) followUps(card, reasoning);  // with the layer as the answer, its objections are already shown
     if (foldedCount) card.append(folded);
-    log.append(card);
-    scrollToEnd(card);
+    appendToLog(card);
+    scrollToEnd(card, "start");
   }
 
   function renderNetworkError(text) {
     const card = el("article", "msg bot kind-error");
     paragraphs(card, (config.texts && config.texts.network_error) || "تعذّر الاتصال بالخدمة الآن.");
-    const retry = el("button", "button-link", label("retry", "أعد المحاولة"));
+    const retry = el("button", "button-link");
     retry.type = "button";
+    retry.append(icon("retry", 16), label("retry", "أعد المحاولة"));
     retry.addEventListener("click", () => {
       card.remove();
-      input.value = text;
-      submit();
+      submit(text);
     });
     card.append(retry);
     if (config.texts && config.texts.support_line) card.append(el("p", "hint", config.texts.support_line));
-    log.append(card);
+    appendToLog(card);
     scrollToEnd(card);
   }
 
   function setBusy(state) {
     busy = state;
-    sendButton.disabled = state;
+    updateSend();
     log.setAttribute("aria-busy", state ? "true" : "false");
   }
 
-  async function submit() {
-    const text = input.value.trim();
+  // «ليطمئنّ قلبي» is looking: three dots, and the label for screen readers and long waits.
+  function typingIndicator() {
+    const box = el("div", "typing");
+    box.setAttribute("role", "status");
+    const dots = el("div", "typing-dots");
+    dots.append(el("span"), el("span"), el("span"));
+    box.append(dots, el("span", "typing-label", label("loading", "…")));
+    return box;
+  }
+
+  // The question shows at once and the composer moves down; a retry after a network error resends it as it was.
+  async function submit(retryText) {
+    const retrying = typeof retryText === "string";
+    const text = retrying ? retryText : input.value.trim();
     if (!text || busy) return;
     setBusy(true);
-    const pending = el("p", "msg bot pending", label("loading", "…"));
-    log.append(pending);
+    if (!retrying) {
+      addUserMessage(text);
+      input.value = "";
+      updateCounter();
+      autoGrow();
+    }
+    const pending = typingIndicator();
+    appendToLog(pending);
     scrollToEnd(pending);
     turn += 1;
     const normalized = normalize(text);
@@ -542,13 +611,14 @@
         history.push({ role: "user", text: text.slice(0, 1200) });
         if (chat) history.push({ role: "assistant", text: chat.history_text.slice(0, 1200) });
         history = history.slice(-4);
-        addUserMessage(text);
-        input.value = "";
-        updateCounter();
         if (data.entry_id) {
           context.prev_entry_id = data.entry_id;
           context.recent = context.recent.concat([{ entry_id: data.entry_id, kind: data.kind, layer: data.layer || "summary" }]).slice(-10);
         }
+      } else if (!input.value) {
+        input.value = text;  // too long or limited: the text comes back to be edited
+        updateCounter();
+        autoGrow();
       }
       renderResponse(data);
     } catch (e) {
@@ -556,18 +626,20 @@
       renderNetworkError(text);
     } finally {
       setBusy(false);
-      input.focus();
+      if (!window.matchMedia("(pointer: coarse)").matches) input.focus();  // phones keep the keyboard closed
     }
+  }
+
+  function updateSend() {
+    sendButton.disabled = busy || !input.value.trim();
   }
 
   function updateCounter() {
     const length = input.value.length;
-    if (length > MAX_CHARS * 0.8) {
-      counter.textContent = label("char_counter", "{العدد} من 800").replace("{العدد}", String(length));
-      counter.classList.toggle("over", length > MAX_CHARS);
-    } else {
-      counter.textContent = "";
-    }
+    counter.textContent = String(length) + " / " + String(MAX_CHARS);
+    counter.classList.toggle("near", length > MAX_CHARS * 0.94 && length <= MAX_CHARS);
+    counter.classList.toggle("over", length > MAX_CHARS);
+    updateSend();
   }
 
   function autoGrow() {
@@ -606,24 +678,156 @@
     reopened.forEach((d) => { d.open = false; });
     reopened = [];
   });
-  document.getElementById("save-pdf").addEventListener("click", () => window.print());
 
-  clearButton.addEventListener("click", () => {
-    if (!window.confirm(label("clear_chat_confirm", "تُمسح المحادثة من هذه الصفحة."))) return;
-    log.querySelectorAll(".msg:not(.welcome)").forEach((node) => node.remove());
+  function clearConversation() {
+    log.replaceChildren();
+    setEmpty(true);
     context.prev_entry_id = null;
     context.recent = [];
     context.repeat_count = 0;
     sentMessages = [];
     history = [];
     turn = 0;
-    input.focus();
-  });
+  }
 
-  document.querySelectorAll("[data-open]").forEach((link) => {
-    link.addEventListener("click", () => {
-      const target = document.getElementById(link.getAttribute("data-open"));
-      if (target) target.open = true;
+  // The sheet: the menu, and the about, privacy, support and clear panels, one at a time.
+  const sheet = document.getElementById("sheet");
+  const sheetTitle = document.getElementById("sheet-title");
+  let sheetOpener = null;
+
+  function openSheet(name) {
+    let title = "";
+    sheet.querySelectorAll("[data-panel]").forEach((panel) => {
+      const on = panel.getAttribute("data-panel") === name;
+      panel.hidden = !on;
+      if (on) title = panel.getAttribute("data-title") || "";
     });
+    sheetTitle.textContent = title;
+    const empty = !log.querySelector(".msg");
+    document.getElementById("m-new").disabled = empty;
+    document.getElementById("m-pdf").disabled = empty;
+    if (sheet.hidden) {
+      sheetOpener = document.activeElement;
+      sheet.classList.remove("closing");
+      sheet.hidden = false;
+    }
+    sheet.querySelector(".sheet-head [data-close]").focus();
+  }
+
+  function closeSheet(then) {
+    if (sheet.hidden || sheet.classList.contains("closing")) return;
+    sheet.classList.add("closing");
+    window.setTimeout(() => {
+      sheet.hidden = true;
+      sheet.classList.remove("closing");
+      if (sheetOpener && document.contains(sheetOpener)) sheetOpener.focus();
+      sheetOpener = null;
+      if (then) then();
+    }, reducedMotion ? 0 : 260);
+  }
+
+  document.addEventListener("click", (event) => {
+    const opener = event.target.closest("[data-sheet]");
+    if (opener) {
+      openSheet(opener.getAttribute("data-sheet"));
+      return;
+    }
+    if (event.target.closest("[data-close]")) closeSheet();
   });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !sheet.hidden) closeSheet();
+  });
+  document.getElementById("menu-open").addEventListener("click", () => openSheet("menu"));
+  document.getElementById("m-new").addEventListener("click", () => openSheet("clear"));
+  document.getElementById("m-pdf").addEventListener("click", () => closeSheet(() => window.print()));
+  document.getElementById("confirm-clear").addEventListener("click", () => closeSheet(clearConversation));
+
+  // First visit: the splash, «أسئلتك الكبيرة تستحق إجابة هادئة», then «قبل أن نبدأ» with three confirmations.
+  // Only the fact that they were confirmed is remembered on this device, so the next visit opens the conversation.
+  const CONSENT_KEY = "lq-consent-v1";
+  const onboarding = document.getElementById("onboarding");
+
+  function consentGiven() {
+    try {
+      return window.localStorage.getItem(CONSENT_KEY) === "1";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function showApp(arrive) {
+    onboarding.hidden = true;
+    app.hidden = false;
+    if (arrive) app.classList.add("arrive");
+    updateCounter();
+  }
+
+  function startOnboarding() {
+    const splash = document.getElementById("splash");
+    const steps = document.getElementById("steps");
+    const welcome = document.getElementById("step-welcome");
+    const consent = document.getElementById("step-consent");
+    const next = document.getElementById("onb-next");
+    const checks = ["c-age", "c-ai", "c-privacy"].map((id) => document.getElementById(id));
+    const later = (fn, ms) => window.setTimeout(fn, reducedMotion ? 0 : ms);
+    let leftSplash = false;
+    const allChecked = () => checks.every((c) => c.checked);
+
+    function show(step, enter) {
+      steps.setAttribute("data-step", step);
+      welcome.hidden = step !== "welcome";
+      consent.hidden = step !== "consent";
+      (step === "welcome" ? welcome : consent).setAttribute("data-enter", enter);
+      next.textContent = step === "welcome" ? "متابعة" : "ابدأ المحادثة";
+      next.disabled = step === "consent" && !allChecked();
+    }
+
+    function go(step, enter) {
+      steps.classList.add("leaving");
+      later(() => {
+        steps.classList.remove("leaving");
+        show(step, enter);
+      }, 190);
+    }
+
+    function leaveSplash() {
+      if (leftSplash) return;
+      leftSplash = true;
+      window.clearTimeout(timer);
+      splash.classList.add("out");
+      later(() => {
+        splash.hidden = true;
+        steps.hidden = false;
+        show("welcome", "up");
+        next.focus();
+      }, 850);
+    }
+
+    const timer = window.setTimeout(leaveSplash, reducedMotion ? 1500 : 5200);
+    splash.addEventListener("click", leaveSplash);
+    document.getElementById("consent-back").addEventListener("click", () => go("welcome", "back"));
+    checks.forEach((c) => c.addEventListener("change", () => {
+      c.closest(".check").classList.toggle("on", c.checked);
+      next.disabled = !allChecked();
+      next.classList.toggle("glow", allChecked());
+    }));
+    next.addEventListener("click", () => {
+      if (steps.getAttribute("data-step") === "welcome") {
+        go("consent", "fwd");
+        return;
+      }
+      if (!allChecked()) return;
+      try {
+        window.localStorage.setItem(CONSENT_KEY, "1");
+      } catch (e) { /* private window: asked again next visit */ }
+      onboarding.classList.add("leaving");
+      later(() => showApp(true), 260);
+    });
+  }
+
+  if (consentGiven()) {
+    showApp(false);
+  } else {
+    startOnboarding();
+  }
 })();
