@@ -118,3 +118,35 @@ def test_dialogue_falls_back_to_gemini_and_without_any_key_there_is_no_dialogue(
     assert used == ["claude-sonnet-5-5", "gemini-3.1-flash-lite"]
     none = dataclasses.replace(s, anthropic_api_key="", gemini_api_key="")
     assert asyncio.run(converse.compose_reply("سؤال", [], entry, none)) is None
+
+
+def test_over_the_daily_claude_budget_the_free_backup_answers(monkeypatch):
+    # DAILY_COST_CAP_USD protects the API credit during judging: over it, Claude is skipped until the next day.
+    from app.limits import LIMITER
+
+    s = dataclasses.replace(main.settings, converse_provider="anthropic", anthropic_api_key="a", gemini_api_key="g",
+                            converse_model="claude-sonnet-5-5", gemini_converse_model="gemini-3.1-flash-lite",
+                            converse_enabled=True, daily_cost_cap_usd=1.0)
+    used = []
+
+    async def claude_ok(s, model, payload, timeout):
+        used.append(model)
+        return '{"reply": "رد"}', {"in": 1, "out": 1, "usd": 0.6}
+
+    async def gemini_ok(s, model, payload, timeout):
+        used.append(model)
+        return '{"reply": "رد"}', {"in": 1, "out": 1}
+
+    monkeypatch.setitem(converse.PROVIDERS, "anthropic", claude_ok)
+    monkeypatch.setitem(converse.PROVIDERS, "gemini", gemini_ok)
+    monkeypatch.setattr(LIMITER, "usd_day", LIMITER._today())
+    monkeypatch.setattr(LIMITER, "usd_today", 0.0)
+    entry = next(iter(main.APPROVED), None) or {"id": "x"}
+    monkeypatch.setattr(converse, "payload", lambda message, history, e: "{}")
+    for _ in range(3):
+        assert asyncio.run(converse.compose_reply("سؤال", [], entry, s)) == "رد"
+    # 0.6 + 0.6 = 1.2 USD reaches the 1.0 cap after the second reply; the third goes to Gemini
+    assert used == ["claude-sonnet-5-5", "claude-sonnet-5-5", "gemini-3.1-flash-lite"]
+    assert LIMITER.claude_allowed(0) is True  # a cap of 0 turns it off
+    monkeypatch.setattr(LIMITER, "usd_day", "2000-01-01")  # a new Riyadh day starts from zero
+    assert LIMITER.claude_allowed(1.0) is True

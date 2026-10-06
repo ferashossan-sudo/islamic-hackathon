@@ -137,11 +137,15 @@ VERIFIERS = {"gemini": _gemini_verify, "anthropic": _anthropic_verify}
 
 def _chain(s: Settings, verify: bool) -> list[tuple]:
     """The configured provider for this role first, then Gemini as the backup when the provider is Claude."""
+    from app.limits import LIMITER
+
     table = VERIFIERS if verify else PROVIDERS
     provider = s.verify_provider if verify else s.converse_provider
     chain = [(provider, s.verify_model if verify else s.converse_model)]
     if provider != "gemini":
         chain.append(("gemini", s.gemini_verify_model if verify else s.gemini_converse_model))
+        if not LIMITER.claude_allowed(s.daily_cost_cap_usd):
+            chain = chain[1:]  # today's Claude budget is spent: the free backup answers
     return [(table[p], m) for p, m in chain if p in table and s.key_for(p)]
 
 
@@ -153,6 +157,7 @@ async def _call(kind: str, chain: list[tuple], s: Settings, payload_text: str, m
         try:
             LIMITER.count_llm_call()
             text, usage = await fn(s, model, payload_text, s.converse_timeout_s)
+            LIMITER.add_cost(usage.get("usd"))
             value = model_cls.model_validate_json(text)
             usage.setdefault("model", first(model))
             log_event(event="llm", call=kind, ok=True, ms=round((perf_counter() - started) * 1000), **usage)

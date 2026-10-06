@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app import compose, kb, pipeline, router, texts
 from app.config import load_settings
+from app.limits import LIMITER
 from app.pages import render_index
 from app.schemas import ChatRequest, ChatResponse
 from app.usage import log_event
@@ -78,7 +79,9 @@ async def health() -> dict:
             "llm": router.health(settings), "provider": settings.router_provider if settings.router_key else None,
             "models": {"router": settings.router_model, "converse": settings.converse_model,
                        "verify": settings.verify_model},
-            "backup": "gemini" if settings.router_provider != "gemini" and settings.gemini_api_key else None}
+            "backup": "gemini" if settings.router_provider != "gemini" and settings.gemini_api_key else None,
+            "claude_usd_today": round(LIMITER.usd_today if LIMITER.usd_day == LIMITER._today() else 0.0, 3),
+            "claude_cap_usd": settings.daily_cost_cap_usd}
 
 
 @app.get("/api/selftest")

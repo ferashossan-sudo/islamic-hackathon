@@ -36,6 +36,8 @@ class Limiter:
         self.salt = b""
         self.llm_day = ""
         self.llm_calls = 0
+        self.usd_day = ""
+        self.usd_today = 0.0
 
     def _today(self) -> str:
         return datetime.now(RIYADH).strftime("%Y-%m-%d")
@@ -76,6 +78,22 @@ class Limiter:
     def count_llm_call(self) -> None:
         self.llm_allowed()
         self.llm_calls += 1
+
+    def _roll_usd(self) -> None:
+        day = self._today()
+        if day != self.usd_day:
+            self.usd_day, self.usd_today = day, 0.0
+
+    def add_cost(self, usd) -> None:
+        """Today's Claude spend in USD, from each call's usage (Gemini's free tier reports none)."""
+        self._roll_usd()
+        self.usd_today += float(usd or 0)
+
+    def claude_allowed(self, cap_usd: float) -> bool:
+        """DAILY_COST_CAP_USD protects the API credit: over it, Claude is skipped for the rest of the Riyadh day and
+        the free Gemini chain answers (or the local search if Gemini fails). A cap of 0 or less turns it off."""
+        self._roll_usd()
+        return cap_usd <= 0 or self.usd_today < cap_usd
 
 
 LIMITER = Limiter()

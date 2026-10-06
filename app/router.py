@@ -93,22 +93,26 @@ async def decide(message: str, prev_entry: dict | None, entries: list[dict], s: 
     if not entries:
         return None
     # The configured provider first; Gemini as the backup when Claude is the provider and its call fails.
+    from app.limits import LIMITER
+
     chain = [(s.router_provider, s.router_model)]
     if s.router_provider != "gemini":
         chain.append(("gemini", s.gemini_router_model))
+        if not LIMITER.claude_allowed(s.daily_cost_cap_usd):
+            chain = chain[1:]  # today's Claude budget is spent: the free backup answers
     chain = [(PROVIDERS[p], m) for p, m in chain if p in PROVIDERS and s.key_for(p)]
     if not chain:
         return None
     system = RULES + "\n\n\x1e" + catalog(entries)
     payload = user_payload(message, prev_entry, prev_message)
     started = perf_counter()
-    from app.limits import LIMITER
 
     for call, model in chain:
         for attempt, timeout in enumerate((s.router_timeout_s, s.router_retry_timeout_s)):
             try:
                 LIMITER.count_llm_call()
                 text, usage = await call(s, model, system, payload, timeout)
+                LIMITER.add_cost(usage.get("usd"))
                 decision = Decision.model_validate_json(text)
                 usage.setdefault("model", first(model))
                 log_event(event="llm", call="router", ok=True, ms=round((perf_counter() - started) * 1000), **usage)
