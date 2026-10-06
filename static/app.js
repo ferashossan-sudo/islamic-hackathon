@@ -552,9 +552,10 @@
     // with the links to the sources.
     const chat = blocks.find((b) => b.type === "chat");
     const lead = !chat && blocks[0].type === "reasoning" ? blocks[0] : null;
-    const shown = chat ? ["chat", "message"] : lead ? ["message"] : ["answer", "message"];
+    const shown = chat ? ["chat", "message", "notice"] : lead ? ["message", "notice"] : ["answer", "message", "notice"];
     if (lead) renderers.reasoning(card, lead, true);
     blocks.forEach((block) => {
+      if (block.key === "level_c_notice") return;  // the sharia reviewer: no warning line with the reply
       if (shown.includes(block.type) && renderers[block.type]) renderers[block.type](card, block);
     });
     const sources = sourcesInto(card, blocks);
