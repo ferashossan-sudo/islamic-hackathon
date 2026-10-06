@@ -19,7 +19,9 @@ sys.path.insert(0, str(ROOT))
 from app import quran  # noqa: E402
 
 BRACKETED = re.compile(r"﴿([^﴾]{8,})﴾")
-AFTER_SIGNAL = re.compile(r"(?:قال تعالى|قوله تعالى|يقول الله)[:\s«]*([^.؟!\n»]{8,120})")
+# Only the words written after the signal, up to a verse the server inserted (﴿…﴾ from the mushaf, checked above):
+# «قال تعالى: ﴿…﴾ [المائدة: 90]» is not a misquote (fixed 6 Oct, 21:00, after it counted exact mushaf verses).
+AFTER_SIGNAL = re.compile(r"(?:قال تعالى|قوله تعالى|يقول الله)[:\s«]*([^.؟!\n»﴿]{8,120})")
 # A quoted or reported saying, not any mention of the Prophet ﷺ (such as «أخلاق النبي ﷺ»).
 # («الحديث» alone also means «the conversation», so it counts only as «في الحديث/في حديث» or before a quote.)
 HADITH_MARK = re.compile(r"قال رسول الله|قال النبي|يقول النبي|يقول رسول الله|في الحديث|في حديث|حديث «")
