@@ -760,7 +760,7 @@
   document.getElementById("m-pdf").addEventListener("click", () => closeSheet(() => window.print()));
   document.getElementById("confirm-clear").addEventListener("click", () => closeSheet(clearConversation));
 
-  // First visit: the splash, «أسئلتك الكبيرة تستحق إجابة هادئة», then «قبل أن نبدأ» with three confirmations.
+  // First visit: the splash, «أسئلتك الكبيرة تستحق إجابة مقنعة», then «قبل أن نبدأ» with three confirmations.
   // Only the fact that they were confirmed is remembered on this device, so the next visit opens the conversation.
   const CONSENT_KEY = "lq-consent-v1";
   const onboarding = document.getElementById("onboarding");
