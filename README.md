@@ -9,6 +9,7 @@
 | | |
 |---|---|
 | **التطبيق الحي** | https://ltq-app.onrender.com |
+| **الفيديو التعريفي (دقيقتان)** | https://drive.google.com/file/d/1TV5rnQzHoXDm05tT8VnViy6-MFUznWKy/view?usp=sharing |
 | **العرض التقديمي** | [presentation/litmainna-qalbi-deck.pdf](presentation/litmainna-qalbi-deck.pdf) |
 | **التقييم ونتائجه** | [EVAL.md](EVAL.md) |
 | **المصادر والأدوات والتراخيص** | [SOURCES.md](SOURCES.md) |
