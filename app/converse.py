@@ -14,9 +14,9 @@ from app import claude, gemini, quran
 from app.config import Settings, first
 from app.usage import log_event
 
-PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "converse_v1.md"
+PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "converse_v2.md"
 RULES = PROMPT_PATH.read_text(encoding="utf-8")
-PROMPT_VERSION = "converse_v1:" + hashlib.sha256(RULES.encode("utf-8")).hexdigest()[:12]
+PROMPT_VERSION = "converse_v2:" + hashlib.sha256(RULES.encode("utf-8")).hexdigest()[:12]
 MAX_HISTORY = 4
 MAX_HISTORY_CHARS = 1200  # a whole previous reply, so the model sees what it already said
 
@@ -49,14 +49,15 @@ def material(entry: dict) -> dict:
 
     The same material goes to the G14 verifier, so a reply built from the reasoning layer is checked against it."""
     labels = {"fact": "حقيقة ثابتة", "leading_theory": "نظرية راجحة", "hypothesis": "فرضية"}
+    # Reason and science first, the way the reply should go; the sharia texts after them.
     return {
         "level": entry["level"],
         "question": entry["question"],
-        "summary": entry["summary"],
-        "explain_simple": entry.get("explain_simple") or "",
-        "full_text": entry["body"],
-        "science": [{"statement": s["claim"], "degree": labels[s["degree"]]} for s in entry.get("science", [])],
         "reasoning": reasoning_material(entry, labels),
+        "science": [{"statement": s["claim"], "degree": labels[s["degree"]]} for s in entry.get("science", [])],
+        "explain_simple": entry.get("explain_simple") or "",
+        "summary": entry["summary"],
+        "full_text": entry["body"],
         "tafsir": [{"by": t["mufassir"], "summary": t["summary"]} for t in entry.get("tafsir", [])],
         "verses": [{"placeholder": "{{q:" + ref + "}}", "reference": quran.label(ref),
                     "text": " ".join(v.text for v in quran.lookup(ref))} for ref in entry.get("verses", [])],
