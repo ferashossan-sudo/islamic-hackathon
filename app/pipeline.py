@@ -403,6 +403,8 @@ STYLE_FEEDBACK = {
     "opens_with_placeholder": "Do not open with a verse or hadith: start with one plain sentence about the question.",
     "no_paragraphs": "Write short paragraphs separated by \\n.",
     "register": "The person writes in Gulf dialect: answer in light, polite Gulf dialect like a respected friend.",
+    "signal": "Put «قال تعالى:» immediately before the verse placeholder, with no words between them: say what the "
+              "verse is about before «قال تعالى» («وعن خلق آدم قال تعالى: {{q:...}}»).",
     "label": "Do not start with a label such as «الجواب المباشر» or «باختصار»: just talk, like a person in a conversation.",
     "names_sources": "Do not name sources, sites, books, encyclopedias, institutes, universities or scholars in the reply "
                       "(«يقرر الشيخ…»، «بحسب موقع…»، «يذكر كتاب…»): say it in your own voice, with the same certainty "
@@ -414,6 +416,8 @@ SOURCE_NARRATION = ("بحسب موقع", "بحسب وزارة", "بحسب جام
                     "يذكر كتاب", "تذكر الموسوعة", "تقرر الموسوعة", "تفسر الموسوعة", "تفسّر الموسوعة", "في جواب الموقع",
                     "يذكر موقع", "كما يذكر المعهد", "يذكر المعهد", "يقول علماء جامعة", "الإسلام سؤال وجواب",
                     "الدرر السنية", "بينات", "مركز أصول", "موقع الشيخ", "فهم التطور")
+# «قال تعالى في ذلك {{q:..}}»: words between the signal and the verse read as part of the quotation.
+SIGNAL_GAP = re.compile(r"(?:قال|يقول) (?:الله )?(?:تعالى|سبحانه)[^{}.؟!\n]*?[ء-ي]{2,}[^{}.؟!\n]*?\{\{q:")
 GULF_MARKERS = frozenset(arabic.normalize(w) for w in (
     "وش", "ليش", "ابي", "أبي", "ابغى", "عطني", "قريت", "طيب", "يعني", "مو", "ولا لا", "شلون", "وشلون", "كذا", "زين"))
 
@@ -431,6 +435,8 @@ def style_problem(reply: str, history: list[dict], message: str = "") -> str | N
         return "no_paragraphs"
     if set(arabic.words(message)) & GULF_MARKERS and not set(arabic.words(reply)) & GULF_MARKERS:
         return "register"
+    if SIGNAL_GAP.search(reply):
+        return "signal"
     if any(reply.lstrip().startswith(p) for p in LABEL_OPENINGS):
         return "label"
     if any(p in reply for p in SOURCE_NARRATION):
