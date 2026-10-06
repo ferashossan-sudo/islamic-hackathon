@@ -58,7 +58,7 @@ def _splash_verse() -> str:
 
 
 def render_index(s: Settings) -> str:
-    fill = {"بريد الفريق": s.team_email}
+    fill = {"بريد الفريق": s.team_email} if s.team_email else {}  # no email set: its line is left out
     labels = texts.pairs("ui_labels")
     footer_parts = texts.text("footer").split(" · ")
 
