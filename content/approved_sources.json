@@ -1,5 +1,5 @@
 {
-  "note": "Domains allowed in KB links. Tafsir links must also be in tafsir_domains. Science comes only from sources whose terms allow use in an AI product (checked on 4 October 2026, see SOURCES.md): U.S. government science agencies (public domain), ESO and NOIRLab press-release texts (CC BY 4.0), UC Berkeley Understanding Evolution (CC BY-NC-SA 4.0), Our World in Data (CC BY 4.0) and Wikipedia (CC BY-SA 4.0) as a last resort. Excluded: NASA, Hubble and Webb sites (their guidelines restrict AI use), OpenStax (no ingestion into AI products without written permission), the A.D.A.M. encyclopedia inside MedlinePlus (/ency/, AI use prohibited), ESA, CK-12 and the National Academies (all rights reserved). Saudi scholarly sources (binbaz.org.sa, binothaimeen.net; alifta.gov.sa for referrals) are used for explanation and creed with attribution; verse meanings still come only from the approved tafsir sources.",
+  "note": "Domains allowed in KB links. Tafsir links must also be in tafsir_domains. Science comes only from sources whose terms allow use in an AI product (checked on 4 October 2026, the additions on 6 October 2026; see SOURCES.md): U.S. government science agencies (public domain, including NIST and the National Library of Medicine), ESO and NOIRLab press-release texts (CC BY 4.0), IAU press releases (CC BY 4.0, from the IAU archive hosted on eso.org), UC Berkeley Understanding Evolution (CC BY-NC-SA 4.0), open university courses and textbooks (Open Yale Courses, CC BY-NC-SA 3.0; LibreTexts, CC BY-NC-SA 4.0 per page) and Our World in Data (CC BY 4.0). Wikipedia was replaced by these on 6 October 2026. Excluded: NASA, Hubble and Webb sites (their guidelines restrict AI use), OpenStax (no ingestion into AI products without written permission), the A.D.A.M. encyclopedia inside MedlinePlus (/ency/, AI use prohibited), ESA, CK-12 and the National Academies (all rights reserved). Saudi scholarly sources (binbaz.org.sa, binothaimeen.net; alifta.gov.sa for referrals) are used for explanation and creed with attribution; verse meanings still come only from the approved tafsir sources.",
   "domains": [
     "dorar.net",
     "hadeethenc.com",
@@ -29,7 +29,10 @@
     "medlineplus.gov",
     "evolution.berkeley.edu",
     "ourworldindata.org",
-    "wikipedia.org"
+    "nist.gov",
+    "nlm.nih.gov",
+    "phys.libretexts.org",
+    "oyc.yale.edu"
   ],
   "tafsir_domains": [
     "dorar.net",
@@ -50,6 +53,10 @@
     "medlineplus.gov": "Public domain (U.S. National Library of Medicine)",
     "evolution.berkeley.edu": "CC BY-NC-SA 4.0 (UCMP Understanding Evolution), paraphrased and translated",
     "ourworldindata.org": "CC BY 4.0 (Our World in Data)",
-    "wikipedia.org": "CC BY-SA 4.0 (Wikipedia), paraphrased and translated"
+    "nist.gov": "Public domain (U.S. National Institute of Standards and Technology)",
+    "nlm.nih.gov": "Public domain (U.S. National Library of Medicine)",
+    "phys.libretexts.org": "CC BY-NC-SA 4.0 (LibreTexts open textbook, per page), paraphrased and translated",
+    "oyc.yale.edu": "CC BY-NC-SA 3.0 (Yale University, Open Yale Courses), paraphrased and translated",
+    "iauarchive.eso.org": "CC BY 4.0 (IAU), paraphrased and translated"
   }
 }
