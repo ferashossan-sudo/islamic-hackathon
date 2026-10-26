@@ -104,6 +104,11 @@ def test_security_headers_on_page_and_api():
         assert r.headers["referrer-policy"] == "no-referrer"
 
 
+def test_static_files_are_revalidated_so_a_deploy_reaches_phones_at_once():
+    for path in ("/static/app.js", "/static/styles.css", "/static/site/site.js"):
+        assert client.get(path).headers["cache-control"] == "no-cache"
+
+
 def test_no_inline_script_style_or_handlers():
     pages = [ROOT / "app" / "templates" / "index.html", ROOT / "static" / "site" / "index.html"]
     sources = [*pages, *(ROOT / "static").glob("*.js"), *(ROOT / "static" / "site").glob("*.js")]

@@ -57,6 +57,10 @@ async def headers_and_timing(request: Request, call_next):
     response.headers.update(SECURITY_HEADERS)
     if request.url.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
+    elif request.url.path.startswith("/static/"):
+        # Ask the browser every time (an unchanged file is a short 304 by its ETag), so a deploy reaches phones at once
+        # instead of after Safari's guessed freshness runs out.
+        response.headers["Cache-Control"] = "no-cache"
     path = request.url.path if request.url.path in LOGGED_PATHS else "other"
     log_event(event="http", path=path, status=response.status_code,
               ms=round((perf_counter() - started) * 1000))

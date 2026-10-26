@@ -37,7 +37,7 @@ document.documentElement.classList.add("js");
   const countUp = (el) => {
     const end = Number(el.dataset.count);
     if (reduce || end === 0) { el.textContent = String(end); return; }
-    const delay = 350, dur = 2000;
+    const delay = 250, dur = 1800;
     let t0 = 0;
     const tick = (t) => {
       if (!t0) t0 = t + delay;
@@ -51,7 +51,7 @@ document.documentElement.classList.add("js");
   if (!reduce) counts.forEach((el) => { el.textContent = "0"; });
   const counter = new IntersectionObserver((entries) => {
     for (const e of entries) if (e.isIntersecting) { countUp(e.target); counter.unobserve(e.target); }
-  }, { rootMargin: "0px 0px -22% 0px", threshold: 1 });
+  }, { rootMargin: "0px 0px -12% 0px", threshold: 0.6 });  // not 1: Safari can report a fully shown number at 0.99
   counts.forEach((el) => counter.observe(el));
 
   // reveal on scroll
@@ -133,8 +133,8 @@ document.documentElement.classList.add("js");
       if (video.src) go(starts[i]);
       play();
     };
-    // the scroll's place in the track (the pinned stretch is the track minus the stage, the same lengths the snap
-    // points are set in): which step, and how far towards the next
+    // the scroll's place in the track (the pinned stretch is the track minus the stage, not minus the window, which
+    // grows when a phone's toolbar hides): which step, and how far towards the next
     const follow = raf(() => {
       const r = track.getBoundingClientRect();
       const range = r.height - stageEl.offsetHeight;
