@@ -1,18 +1,25 @@
-// «ليطمئنّ قلبي» showcase page: scroll reveals, the three lines, the steps driving the recorded conversation,
-// count-ups, and golden motes behind the hero. No libraries. Without JavaScript the page shows everything statically:
-// the hidden start states in site.css apply only under the "js" class set here.
+// «ليطمئنّ قلبي» showcase page: scroll reveals, the three lines, the recorded conversation with its steps, count-ups,
+// a reading-progress line, and golden motes behind the hero. No libraries. Without JavaScript the page shows everything
+// statically: the hidden start states in site.css apply only under the "js" class set here.
 document.documentElement.classList.add("js");
 (() => {
   "use strict";
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const narrowMQ = window.matchMedia("(max-width: 760px)");
   const raf = (fn) => { let queued = false; return () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; fn(); }); }; };
 
-  // nav: glass once the page moves, and the link of the section in view (none for sections without a link)
+  // nav: glass once the page moves (the hero's scroll cue fades then too); the progress line follows the scroll;
+  // and the link of the section in view lights (none for sections without a link)
   const nav = document.getElementById("nav");
-  const onScrollNav = () => nav.classList.toggle("scrolled", window.scrollY > 12);
+  const bar = document.getElementById("progress");
+  const onScrollNav = raf(() => {
+    const y = window.scrollY, max = document.documentElement.scrollHeight - window.innerHeight;
+    nav.classList.toggle("scrolled", y > 12);
+    document.documentElement.classList.toggle("moved", y > 40);
+    if (bar) bar.style.transform = `scaleX(${max > 0 ? Math.min(1, y / max) : 0})`;
+  });
   onScrollNav();
   window.addEventListener("scroll", onScrollNav, { passive: true });
+  window.addEventListener("resize", onScrollNav);
   const links = [...document.querySelectorAll(".nav-links a")];
   const linkFor = new Map(links.map((a) => [a.getAttribute("href").slice(1), a]));
   const setNav = (id) => links.forEach((a) => {
@@ -56,8 +63,8 @@ document.documentElement.classList.add("js");
     const r = linesSec.getBoundingClientRect();
     const span = r.height - window.innerHeight;
     const p = Math.min(1, Math.max(0, -r.top / (span || 1)));
-    // the first line lights as the section reaches mid-screen; the second, the third and the note follow
-    lineEls.forEach((el, i) => el.classList.toggle("on", i === 0 ? r.top < window.innerHeight * 0.45 : p >= i * 0.26));
+    // the first line lights as the section reaches mid-screen; the second and the third follow
+    lineEls.forEach((el, i) => el.classList.toggle("on", i === 0 ? r.top < window.innerHeight * 0.45 : p >= i * 0.3));
   });
   if (reduce) lineEls.forEach((el) => el.classList.add("on"));
   else {
@@ -69,76 +76,81 @@ document.documentElement.classList.add("js");
     }).observe(linesSec);
   }
 
-  // steps: the step under the reading line is active (mid-screen on desktop, just below the recording on a phone),
-  // and the recording plays that step's moment in a loop (data-t to data-end, in seconds); a fade hides each cut
+  // how it works: the recorded conversation plays by itself while it is on screen, from the question to the sources,
+  // and loops. The step it is at lights up, with a bar filling over that step's stretch (data-t, in seconds, up to the
+  // next step, the last up to the video's data-end); tapping a step jumps there, and a fade hides each cut
   const video = document.getElementById("demo");
   const phone = document.querySelector(".phone");
-  const stage = document.querySelector(".stage");
+  const playBtn = document.querySelector(".play");
   const howSec = document.getElementById("how");
   const steps = [...document.querySelectorAll("[data-step]")];
-  let current = null, fadeTimer = 0, howVisible = false;
+  const bars = [...document.querySelectorAll("[data-bar]")];
+  if (video && phone && howSec && steps.length) {
+    const starts = steps.map((s) => Number(s.dataset.t));
+    const START = starts[0], END = Number(video.dataset.end) || 40.5;
+    const fills = steps.map((s) => s.querySelector(".step-bar i"));
+    const barFills = bars.map((b) => b.querySelector("i"));
+    let at = -1, onScreen = false, frameId = 0, fadeTimer = 0;
 
-  const seek = (t) => {
-    const go = () => {
-      clearTimeout(fadeTimer);
-      const jump = () => {
-        try { video.currentTime = t; } catch (_) { /* keeps playing where it is */ }
-        if (!reduce && howVisible) video.play().catch(() => {});
-      };
-      if (reduce) { jump(); return; }
-      video.classList.add("jump");
-      fadeTimer = setTimeout(() => {
-        video.addEventListener("seeked", () => video.classList.remove("jump"), { once: true });
-        setTimeout(() => video.classList.remove("jump"), 600);  // in case no seek happens
-        jump();
-      }, 200);
+    const show = (i) => {
+      if (i === at) return;
+      at = i;
+      steps.forEach((s, k) => {
+        s.classList.toggle("on", k === i);
+        const b = s.querySelector("button");
+        if (k === i) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current");
+      });
+      bars.forEach((b, k) => b.classList.toggle("on", k === i));
     };
-    if (video.readyState >= 1) go();
-    else {
-      video.addEventListener("loadedmetadata", go, { once: true });
-      if (video.src && video.networkState !== HTMLMediaElement.NETWORK_LOADING) video.load();  // preload=none waits
-      if (!reduce && howVisible) video.play().catch(() => {});  // iOS may hold the load back until play()
-    }
-  };
-  const activate = (step) => {
-    if (!step || step === current) return;
-    current = step;
-    steps.forEach((s) => s.classList.toggle("on", s === step));
-    if (phone) phone.dataset.at = String(steps.indexOf(step));
-    const t = Number(step.dataset.t);
-    if (video && video.src && Number.isFinite(t)) seek(t);
-  };
-  if (video) {
-    // keep the recording inside the active step's moment: past its end, or before its start (after the clip ends)
-    video.addEventListener("timeupdate", () => {
-      if (!current || video.classList.contains("jump")) return;
-      const t = Number(current.dataset.t), end = Number(current.dataset.end);
-      if ((Number.isFinite(end) && video.currentTime >= end) || video.currentTime < t - 0.5) seek(t);
-    });
-    video.addEventListener("ended", () => { if (current) seek(Number(current.dataset.t)); });
-  }
-  const pickStep = raf(() => {
-    // phone: hand over when the next text nears the bottom of the one pinned under the recording, so they never
-    // overlap (each threshold uses the previous text's height, so the choice only moves forward)
-    if (narrowMQ.matches && stage) {
-      const pin = stage.getBoundingClientRect().bottom + 10;
-      let pick = steps[0];
-      for (let i = 1; i < steps.length; i++) {
-        const prev = steps[i - 1].querySelector(".step-body");
-        if (steps[i].getBoundingClientRect().top <= pin + prev.offsetHeight + 24) pick = steps[i];
-      }
-      activate(pick);
-      return;
-    }
-    const line = narrowMQ.matches && stage ? stage.getBoundingClientRect().bottom + 40 : window.innerHeight / 2;
-    for (const s of steps) {
-      const r = s.getBoundingClientRect();
-      if (r.top <= line && r.bottom > line) { activate(s); return; }
-    }
-    if (!current && steps[0] && steps[0].getBoundingClientRect().top > line) activate(steps[0]);
-  });
+    const paint = () => {
+      const t = video.currentTime;
+      let i = 0;
+      while (i + 1 < starts.length && t >= starts[i + 1]) i++;
+      show(i);
+      const end = i + 1 < starts.length ? starts[i + 1] : END;
+      const p = Math.min(1, Math.max(0, (t - starts[i]) / (end - starts[i])));
+      fills.forEach((f, k) => { if (f) f.style.transform = `scaleX(${k === i ? p : 0})`; });
+      barFills.forEach((f, k) => { if (f) f.style.transform = `scaleX(${k < i ? 1 : k === i ? p : 0})`; });
+    };
+    const play = () => {
+      if (reduce || !onScreen || !video.src) return;
+      video.play().then(() => { playBtn.hidden = true; }).catch(() => { playBtn.hidden = false; });
+    };
+    const go = (t) => {
+      const jump = () => {
+        clearTimeout(fadeTimer);
+        if (reduce) { try { video.currentTime = t; } catch (_) { /* stays where it is */ } paint(); return; }
+        video.classList.add("jump");
+        fadeTimer = setTimeout(() => {
+          video.addEventListener("seeked", () => video.classList.remove("jump"), { once: true });
+          setTimeout(() => video.classList.remove("jump"), 700);  // in case no seek happens
+          try { video.currentTime = t; } catch (_) { /* stays where it is */ }
+          paint();
+        }, 200);
+      };
+      if (video.readyState >= 1) jump(); else video.addEventListener("loadedmetadata", jump, { once: true });
+    };
+    // keep the recording between the question and the sources
+    const keepInside = () => {
+      if (video.classList.contains("jump")) return;
+      if (video.currentTime >= END || video.currentTime < START - 0.5) go(START);
+    };
+    const tick = () => { paint(); keepInside(); frameId = requestAnimationFrame(tick); };
+    video.addEventListener("play", () => { cancelAnimationFrame(frameId); frameId = requestAnimationFrame(tick); });
+    video.addEventListener("pause", () => cancelAnimationFrame(frameId));
+    video.addEventListener("timeupdate", () => { paint(); keepInside(); });
+    video.addEventListener("ended", () => { go(START); play(); });
+    video.addEventListener("loadedmetadata", () => { if (video.currentTime < START) video.currentTime = START; paint(); });
 
-  if (video && howSec) {
+    steps.forEach((s, k) => s.querySelector("button").addEventListener("click", () => { go(starts[k]); play(); }));
+    bars.forEach((b, k) => b.addEventListener("click", () => { go(starts[k]); play(); }));
+    playBtn.addEventListener("click", () => {
+      playBtn.hidden = true;
+      video.play().catch(() => { playBtn.hidden = false; });
+    });
+    show(0);
+    if (reduce) playBtn.hidden = false;
+
     // the recording is fetched whole (about 2 MB) as the section nears, so every jump is instant and works on any
     // host, with or without range requests; if the fetch or the blob fails it streams from the file instead
     const file = video.dataset.src;
@@ -146,7 +158,7 @@ document.documentElement.classList.add("js");
       video.preload = "auto";
       video.src = src;
       video.load();
-      if (current) { const step = current; current = null; activate(step); }
+      play();
     };
     video.addEventListener("error", () => { if (video.src.startsWith("blob:")) attach(file); });
     const load = new IntersectionObserver(([e]) => {
@@ -157,19 +169,13 @@ document.documentElement.classList.add("js");
         .catch(() => attach(file));
     }, { rootMargin: "150% 0px" });
     load.observe(howSec);
-    // follow the scroll only while the section is on screen, and pause the recording when it is not
+    // play while the phone is well in view, pause when it is not
     new IntersectionObserver(([e]) => {
-      howVisible = e.isIntersecting;
-      if (howVisible) { window.addEventListener("scroll", pickStep, { passive: true }); pickStep(); if (current && video.src && !reduce) video.play().catch(() => {}); }
-      else {
-        // leaving mid-fade must not strand the recording hidden; coming back re-activates the step
-        window.removeEventListener("scroll", pickStep); clearTimeout(fadeTimer); video.pause();
-        video.classList.remove("jump"); current = null;
-      }
-    }).observe(howSec);
-    window.addEventListener("resize", pickStep);
+      onScreen = e.isIntersecting;
+      if (onScreen) play();
+      else { video.pause(); if (reduce) playBtn.hidden = false; }
+    }, { threshold: 0.35 }).observe(phone);
   }
-  if (steps[0]) steps[0].classList.add("on");
 
   // golden motes rising slowly behind the hero; paused when the hero is out of view
   const cv = document.getElementById("motes");

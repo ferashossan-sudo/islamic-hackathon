@@ -96,6 +96,9 @@ h1, h2, h3, .line, .vision-text, .need-text { text-wrap: balance; }
 .nav-links { display: flex; gap: 28px; font-size: 14.5px; }
 .nav-links a { color: var(--muted); transition: color .2s; }
 .nav-links a:hover, .nav-links a.on { color: var(--text); }
+/* reading progress: a gold hairline across the top that fills as the page scrolls (from the right, the reading side) */
+.progress { display: none; position: fixed; z-index: 60; top: 0; inset-inline: 0; height: 2px; background: var(--gold); box-shadow: 0 0 8px rgba(223, 205, 172, .5); transform-origin: right; transform: scaleX(0); pointer-events: none; }
+.js .progress { display: block; }
 
 /* hero: sized by height as well, so the whole first screen (and the scroll cue) fits a laptop */
 .hero { position: relative; min-height: 100vh; min-height: 100svh; display: grid; place-items: center; padding: clamp(88px, 11vh, 120px) 20px clamp(80px, 10vh, 110px); overflow: hidden; }
@@ -113,38 +116,28 @@ h1, h2, h3, .line, .vision-text, .need-text { text-wrap: balance; }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 @keyframes fill { to { opacity: 1; } }
 @keyframes breathe { 0%, 100% { opacity: .85; transform: translate(-50%, -50%) scale(1); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); } }
-.badge {
-  margin-top: clamp(24px, 4vw, 40px); display: inline-flex; align-items: center; gap: 10px;
-  padding: 7px 16px; border-radius: 999px; border: 1px solid var(--line); background: rgba(26, 22, 19, .5);
-  color: var(--muted); font-size: 13px;
-}
-.dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 10px var(--gold); animation: blink 2.4s ease-in-out infinite; }
-@keyframes blink { 50% { opacity: .35; } }
 .title { margin-top: clamp(22px, 3vw, 34px); font-size: clamp(64px, min(12.5vw, 17vh), 168px); font-weight: 600; line-height: 1.25; letter-spacing: -.01em; }
-.verse { margin-top: 10px; font-family: var(--quran); font-size: clamp(22px, 2.6vw, 32px); line-height: 2; color: #EDE4D3; }
 .orn { color: var(--gold); }
 .ref { display: block; font-family: var(--sans); font-size: 14px; line-height: 1.4; color: var(--dim); font-weight: 500; }
 .lede { text-wrap: balance; margin-top: clamp(30px, 4.5vh, 46px); max-width: 620px; color: var(--muted); font-size: clamp(16px, 1.7vw, 19px); }
 .cta { margin-top: 34px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
-.scroll-cue { position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; color: var(--dim); font-size: 13px; }
+/* the scroll cue: words and a gold arrow that nudges down; it fades once the page moves */
+.scroll-cue { position: absolute; bottom: calc(24px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--muted); font-size: 14px; white-space: nowrap; transition: opacity .4s, color .2s; }
 .scroll-cue:hover { color: var(--gold); }
-.mouse { width: 20px; height: 32px; border: 1.5px solid currentColor; border-radius: 12px; display: grid; justify-items: center; padding-top: 6px; }
-.mouse span { width: 3px; height: 7px; border-radius: 2px; background: currentColor; animation: wheel 1.8s ease-in-out infinite; }
-@keyframes wheel { 0% { transform: translateY(0); opacity: 1; } 70% { transform: translateY(9px); opacity: 0; } 100% { opacity: 0; } }
-@media (hover: none) { .mouse { display: none; } }
+.chev { width: 28px; height: 28px; fill: none; stroke: var(--gold); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; animation: nudge 1.8s ease-in-out infinite; }
+@keyframes nudge { 0%, 100% { transform: translateY(0); opacity: .6; } 50% { transform: translateY(7px); opacity: 1; } }
+.moved .scroll-cue { opacity: 0; pointer-events: none; }
 
 /* hero entrance, while the heart is drawn */
-.hero .badge, .hero .title, .hero .verse, .hero .lede, .hero .cta { opacity: 0; transform: translateY(14px); animation: rise .8s var(--ease) forwards; }
-.hero .badge { animation-delay: .35s; }
+.hero .title, .hero .lede, .hero .cta { opacity: 0; transform: translateY(14px); animation: rise .8s var(--ease) forwards; }
 .hero .title { animation-delay: .45s; }
-.hero .verse { animation-delay: .6s; }
 .hero .lede { animation-delay: .7s; }
 .hero .cta { animation-delay: .8s; }
 @keyframes rise { to { opacity: 1; transform: none; } }
 
 /* the three lines: a tall section whose text stays put while each line lights up in turn */
 .lines { position: relative; }
-.js .lines { height: 260vh; }
+.js .lines { height: 185vh; }
 .lines-in { display: flex; flex-direction: column; justify-content: center; width: min(1120px, 100% - 40px); margin-inline: auto; padding: 80px 0; }
 .js .lines-in { position: sticky; top: 0; height: 100vh; height: 100svh; padding: 0; }
 .line { font-size: clamp(28px, 9vw, 96px); font-weight: 600; line-height: 1.32; transition: opacity .6s var(--ease), filter .6s; }
@@ -152,9 +145,6 @@ h1, h2, h3, .line, .vision-text, .need-text { text-wrap: balance; }
 .js .line.on { opacity: 1; filter: none; }
 .line-gold { color: var(--gold); }
 .js .line-gold:not(.on) { color: var(--text); }
-.lines-note { text-wrap: pretty; margin-top: 34px; max-width: 640px; color: var(--muted); font-size: clamp(16px, 1.7vw, 19px); transition: opacity .7s var(--ease), transform .7s var(--ease); }
-.js .lines-note { opacity: 0; transform: translateY(10px); }
-.js .lines-note.on { opacity: 1; transform: none; }
 
 /* the story of the name */
 .story { text-align: center; }
@@ -181,24 +171,26 @@ h1, h2, h3, .line, .vision-text, .need-text { text-wrap: balance; }
 .stat > span { display: block; margin-top: 14px; max-width: 260px; text-wrap: pretty; color: var(--muted); font-size: 16px; line-height: 1.65; }
 .need .fine { margin-top: 32px; }
 
-/* how it works: steps on a progress rail beside a phone that stays in view */
-.how-grid { display: grid; grid-template-columns: minmax(0, 560px) auto; justify-content: center; column-gap: clamp(48px, 7vw, 112px); align-items: start; }
-.steps { position: relative; display: flex; flex-direction: column; padding-inline-start: 36px; }
-.steps::before { content: ""; position: absolute; inset-block: 30vh; inset-inline-start: 0; width: 1px; background: var(--line); }
-.step { position: relative; min-height: 92vh; display: flex; flex-direction: column; justify-content: center; transition: opacity .5s var(--ease); }
-.js .step { opacity: .28; }
-.js .step.on { opacity: 1; }
-.step::before { content: ""; position: absolute; top: 50%; inset-inline-start: -40px; width: 9px; height: 9px; border-radius: 50%; background: var(--surface-solid); border: 1px solid var(--gold-line); transition: background .4s, box-shadow .4s, border-color .4s; }
-.step.on::before { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 12px rgba(223, 205, 172, .6); }
-.step-n { display: flex; align-items: center; gap: 12px; color: var(--gold); font-size: 14px; font-weight: 500; }
-.step-n span { font-variant-numeric: tabular-nums; color: var(--dim); }
-.step-n span::after { content: ""; display: inline-block; width: 34px; height: 1px; background: var(--gold-line); vertical-align: middle; margin-inline-start: 12px; }
-.step h3 { margin-top: 14px; font-size: clamp(30px, 4vw, 48px); font-weight: 600; line-height: 1.3; }
-.step p:last-child { margin-top: 14px; max-width: 520px; color: var(--muted); font-size: clamp(16px, 1.6vw, 18.5px); }
-.stage { position: sticky; top: calc(50vh - min(37vh, 360px)); display: grid; place-items: center; }
+/* how it works: the recording plays by itself in a phone; beside it the steps, the current one lit, with a bar that
+   fills over its stretch of the recording; tapping a step jumps there */
+.how-grid { display: grid; grid-template-columns: minmax(0, 500px) auto; justify-content: center; align-items: center; column-gap: clamp(48px, 7vw, 112px); }
+.how .sec-head { margin-bottom: clamp(26px, 4vh, 40px); }
+.steps { list-style: none; margin: 0; padding: 0; }
+.step { position: relative; border-top: 1px solid var(--line); }
+.step button { display: grid; grid-template-columns: 44px 1fr; align-items: baseline; width: 100%; padding: 16px 0 18px; border: 0; background: none; color: inherit; font: inherit; text-align: start; cursor: pointer; transition: opacity .4s var(--ease); }
+.js .step:not(.on) button { opacity: .4; }
+.js .step:not(.on) button:hover { opacity: .75; }
+.step-n { color: var(--gold); font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.step-title { display: block; font-size: clamp(20px, 1.9vw, 24px); font-weight: 600; line-height: 1.45; }
+.step-line { display: block; margin-top: 2px; color: var(--muted); font-size: 16px; line-height: 1.7; text-wrap: pretty; }
+.step-bar { display: none; position: absolute; z-index: 1; bottom: -1px; inset-inline: 0; height: 2px; }
+.js .step-bar { display: block; }
+.step-bar i, .how-bars i { display: block; height: 100%; border-radius: 2px; background: var(--gold); transform-origin: right; transform: scaleX(0); }
+.how-bars { display: none; }
+.stage { display: grid; place-items: center; }
 /* the frame takes its width from its height, so the recording is never cropped */
 .phone {
-  position: relative; width: auto; height: min(74vh, 720px); aspect-ratio: 540 / 1168; border-radius: 42px; padding: 9px;
+  position: relative; width: auto; height: min(72vh, 700px); aspect-ratio: 540 / 1168; border-radius: 42px; padding: 9px;
   background: linear-gradient(160deg, #2A241E, #14110D 60%); border: 1px solid rgba(255, 244, 230, .12);
   box-shadow: 0 40px 120px rgba(0, 0, 0, .55), 0 0 0 1px rgba(0, 0, 0, .6) inset;
 }
@@ -206,22 +198,22 @@ h1, h2, h3, .line, .vision-text, .need-text { text-wrap: balance; }
   content: ""; position: absolute; inset: -60px; z-index: -1; border-radius: 50%;
   background: radial-gradient(closest-side, rgba(217, 184, 139, .22), transparent);
 }
-.phone video { width: 100%; height: 100%; object-fit: contain; border-radius: 34px; background: #0E0C09; transition: opacity .25s, object-position .6s var(--ease); }
+.phone video { width: 100%; height: 100%; object-fit: contain; border-radius: 34px; background: #0E0C09; transition: opacity .25s; }
 .phone video.jump { opacity: 0; }
+/* shown only when the phone refuses to start the recording by itself (low power mode, reduced motion) */
+.play { position: absolute; inset: 0; margin: auto; width: 76px; height: 76px; border: 0; border-radius: 50%; display: grid; place-items: center; background: rgba(223, 205, 172, .94); color: var(--bg); cursor: pointer; box-shadow: 0 12px 34px rgba(0, 0, 0, .55); }
+.play[hidden] { display: none; }
+.play svg { width: 30px; height: 30px; fill: currentColor; transform: translateX(2px); }
 
-/* trust: five cards in a chain */
-.flow { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: clamp(20px, 3vw, 40px); position: relative; }
+/* trust: four links in a chain */
+.flow { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(24px, 3.5vw, 48px); position: relative; }
 .flow::before { content: ""; position: absolute; top: 19px; inset-inline: 0; height: 1px; background: linear-gradient(to left, rgba(223, 205, 172, .55), rgba(223, 205, 172, .12)); }
 .flow-card { position: relative; }
 .flow-n { position: relative; display: inline-grid; place-items: center; width: 39px; height: 39px; border-radius: 50%; border: 1px solid var(--gold-line); background: var(--bg); color: var(--gold); font-size: 13px; font-variant-numeric: tabular-nums; }
 .flow-last .flow-n { background: var(--gold); border-color: var(--gold); color: var(--bg); box-shadow: 0 0 18px rgba(223, 205, 172, .45); }
 .flow-last h3 { color: var(--gold); }
 .flow-card h3 { margin-top: 20px; font-size: 19px; font-weight: 600; line-height: 1.5; }
-.flow-card p { margin-top: 8px; color: var(--muted); font-size: 15.5px; line-height: 1.75; }
-.sources { margin-top: 40px; text-align: center; color: var(--muted); font-size: 15px; }
-.chips { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 22px; }
-.chips li { display: inline-flex; align-items: center; gap: 8px; color: var(--text); font-size: 14.5px; }
-.chips li::before { content: ""; flex: none; width: 5px; height: 5px; border-radius: 50%; background: var(--gold); }
+.flow-card p { margin-top: 8px; color: var(--muted); font-size: 16px; line-height: 1.75; }
 
 /* results */
 .metrics { display: grid; grid-template-columns: repeat(4, 1fr); border-block: 1px solid var(--line); }
@@ -231,7 +223,7 @@ h1, h2, h3, .line, .vision-text, .need-text { text-wrap: balance; }
 .metric b { order: -1; display: block; font-size: clamp(56px, 6vw, 88px); font-weight: 600; line-height: 1; color: var(--gold); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .metric b small { font-size: .34em; color: var(--muted); font-weight: 500; letter-spacing: 0; }
 .metric h3 { margin-top: 20px; font-size: 19px; font-weight: 600; }
-.metric p { margin-top: 10px; color: var(--muted); font-size: 15.5px; line-height: 1.8; }
+.metric p { margin-top: 10px; color: var(--muted); font-size: 16px; line-height: 1.75; }
 #results .fine { margin-top: 30px; }
 
 /* vision */
@@ -239,7 +231,6 @@ h1, h2, h3, .line, .vision-text, .need-text { text-wrap: balance; }
 .vision-text { max-width: 980px; margin-inline: auto; font-size: clamp(30px, 4.8vw, 64px); font-weight: 600; line-height: 1.5; }
 .vision-text em { font-style: normal; color: var(--gold); }
 .vision-close { transition-delay: .25s; margin: 30px auto 0; max-width: 760px; color: var(--gold); font-size: clamp(18px, 2vw, 23px); font-weight: 500; }
-.vision-sub { transition-delay: .5s; margin: 34px auto 0; max-width: 700px; color: var(--muted); font-size: clamp(16px, 1.7vw, 19px); }
 
 /* team */
 .team-title { text-align: center; font-size: clamp(40px, 6vw, 80px); font-weight: 600; line-height: 1.2; }
@@ -257,11 +248,11 @@ h1, h2, h3, .line, .vision-text, .need-text { text-wrap: balance; }
 .li:hover { color: var(--gold); border-color: var(--gold-line); }
 .li-icon { width: 14px; height: 14px; }
 
-/* try it: dark code on a cream tile (a four-module quiet zone), beside the call to action */
-/* one centred column: heading, the code in cream straight on the dark page (the page is its quiet zone), button */
+/* try it: one centred column; dark modules on a cream tile (its two-module light margin is drawn into the code), so
+   every phone camera reads it, also from a screen */
 .try-card { display: flex; flex-direction: column; align-items: center; text-align: center; }
 .try-card h2 { font-size: clamp(32px, 4.4vw, 52px); font-weight: 600; line-height: 1.3; }
-.try-qr { width: clamp(180px, 17vw, 220px); margin-top: clamp(32px, 4vw, 44px); }
+.try-qr { width: clamp(210px, 18vw, 250px); margin-top: clamp(32px, 4vw, 44px); border-radius: 6px; overflow: hidden; box-shadow: 0 24px 60px -20px rgba(0, 0, 0, .7), 0 0 50px rgba(223, 205, 172, .12); }
 .try-qr svg { width: 100%; height: auto; shape-rendering: crispEdges; }
 .try-card .btn { margin-top: clamp(32px, 4vw, 44px); }
 
@@ -279,7 +270,6 @@ h1, h2, h3, .line, .vision-text, .need-text { text-wrap: balance; }
 .flow-card:nth-child(2), .metric:nth-child(2), .member:nth-child(2) { transition-delay: .12s; }
 .flow-card:nth-child(3), .metric:nth-child(3), .member:nth-child(3) { transition-delay: .24s; }
 .flow-card:nth-child(4), .metric:nth-child(4) { transition-delay: .36s; }
-.flow-card:nth-child(5) { transition-delay: .48s; }
 
 /* tablet */
 @media (max-width: 1020px) {
@@ -297,16 +287,10 @@ h1, h2, h3, .line, .vision-text, .need-text { text-wrap: balance; }
   .nav { grid-template-columns: 1fr auto; }
 }
 
-/* phone: a wide window into the recording stays at the top; each step's card waits right under it, and the window
-   pans to the part of the chat that step is about */
+/* phone: the whole recording in a phone frame, as tall as the screen allows; under it a bar per step (the current one
+   fills as the recording plays) and the current step's words */
 @media (max-width: 760px) {
-  :root {
-    --nav-h: 56px;
-    --phone-h: min(50vh, calc(100vh - 330px));
-    --phone-h: min(50svh, calc(100svh - 330px));
-    --stage-top: calc(var(--nav-h) + 20px);
-    --stage-h: calc(var(--stage-top) + var(--phone-h) + 16px);
-  }
+  :root { --nav-h: 56px; }
   .nav { top: 10px; }
   /* a soft band under the floating nav, so text scrolling past does not show sliced above it */
   body::after { content: ""; position: fixed; z-index: 45; top: 0; inset-inline: 0; height: calc(var(--nav-h) + 20px); pointer-events: none;
@@ -314,10 +298,8 @@ h1, h2, h3, .line, .vision-text, .need-text { text-wrap: balance; }
   #try { min-height: calc(100vh - 180px); min-height: calc(100svh - 180px); }
   .btn-sm { height: 44px; }
   .hero { padding-top: 96px; }
-  .badge { font-size: 12px; padding: 6px 14px; text-align: center; }
   .title { font-size: clamp(50px, 16vw, 72px); }
-  .verse { margin-top: 22px; }
-  .js .lines { height: 220vh; height: 220svh; }
+  .js .lines { height: 155vh; height: 155svh; }
   .line { font-size: clamp(28px, 8.6vw, 38px); }
   .js .line { opacity: .24; }
   .story-beats { grid-template-columns: 1fr; }
@@ -328,30 +310,25 @@ h1, h2, h3, .line, .vision-text, .need-text { text-wrap: balance; }
   .stat:first-child { border-top: 0; }
   .stat b { font-size: 52px; }
   .stat > span { margin-top: 0; font-size: 15px; }
-  .how-grid { grid-template-columns: 1fr; gap: 0; }
-  .stage {
-    order: -1; position: sticky; top: 0; z-index: 2; display: block;
-    height: var(--stage-h); padding: var(--stage-top) 16px 16px; margin-inline: -20px;
-    background: linear-gradient(to bottom, var(--bg) calc(100% - 16px), rgba(14, 12, 9, 0));
-  }
-  .phone { width: 100%; height: var(--phone-h); aspect-ratio: auto; border-radius: 22px; padding: 4px; box-shadow: 0 20px 60px rgba(0, 0, 0, .5); }
-  .phone::before { inset: -20px; }
-  .phone video { object-fit: cover; object-position: 50% 0; border-radius: 18px; }
-  .phone[data-at="0"] video { object-position: 50% 40%; }
-  .phone[data-at="1"] video { object-position: 50% 0; }
-  .phone[data-at="2"] video { object-position: 50% 60%; }
-  .phone[data-at="3"] video { object-position: 50% 70%; }
-  .phone[data-at="4"] video { object-position: 50% 100%; }
-  .steps { padding-inline-start: 0; margin-bottom: -170px; }  /* the window lets go as the last text starts to leave */
-  .steps::before, .step::before { display: none; }
-  .step { display: block; min-height: 80vh; min-height: 80svh; padding-bottom: 64px; }
-  .step:last-child { padding-bottom: 0; }
-  .js .step { opacity: 1; }
-  .step-body { position: sticky; top: calc(var(--stage-h) + 10px); z-index: 1; padding: 0 4px; transition: opacity .4s; }
-  .js .step:not(.on) .step-body { opacity: .3; }
-  .js .step:has(~ .step.on) .step-body { opacity: 0; transition-duration: .25s; }
-  .step h3 { font-size: 24px; margin-top: 8px; }
-  .step p:last-child { font-size: 15.5px; margin-top: 8px; }
+  .how-grid { display: flex; flex-direction: column; align-items: stretch; }
+  .how-side { display: contents; }
+  .how .sec-head { order: 0; margin-bottom: 26px; }
+  .stage { order: 1; }
+  .phone { height: min(64vh, 580px); height: min(64svh, 580px); border-radius: 34px; padding: 6px; box-shadow: 0 20px 60px rgba(0, 0, 0, .5); }
+  .phone::before { inset: -30px; }
+  .phone video { border-radius: 28px; }
+  .js .how-bars { order: 2; display: flex; gap: 6px; width: min(100%, 300px); margin: 14px auto 0; }
+  .how-bars button { position: relative; flex: 1; height: 28px; padding: 0; border: 0; background: none; cursor: pointer; }
+  .how-bars button::before, .how-bars i { position: absolute; inset-inline: 0; top: 50%; height: 3px; margin-top: -1.5px; }
+  .how-bars button::before { content: ""; border-radius: 2px; background: rgba(255, 244, 230, .14); }
+  .steps { order: 3; min-height: 96px; }
+  .js .step:not(.on) { display: none; }
+  .step { border-top: 0; }
+  .js .step-bar { display: none; }
+  .step button { display: flex; flex-direction: column; align-items: center; padding: 2px 0 0; text-align: center; cursor: default; }
+  .step-n { font-size: 13px; }
+  .step-title { font-size: 21px; }
+  .step-line { font-size: 15.5px; }
   .flow { padding-inline-start: 56px; }
   .flow-n { inset-inline-start: -56px; }
   .metrics { grid-template-columns: 1fr; border-bottom: 0; }
@@ -369,17 +346,16 @@ h1, h2, h3, .line, .vision-text, .need-text { text-wrap: balance; }
   .avatar { width: 84px; grid-row: span 3; align-self: start; margin: 0; border-radius: 10px; box-shadow: 0 0 0 1px var(--gold-line); }
   .member h3 { margin-top: 0; font-size: 18px; }
   .member p { margin-top: 0; }
-  .try-qr { display: none; }
+  .try-qr { width: 210px; }
   .foot-in { flex-direction: column; text-align: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
-  .glow, .dot, .mouse span { animation: none !important; }
+  .glow, .chev { animation: none !important; }
   .heart-line { stroke-dashoffset: 0; }
-  .heart-fill, .hero .badge, .hero .title, .hero .verse, .hero .lede, .hero .cta { opacity: 1; transform: none; }
+  .heart-fill, .hero .title, .hero .lede, .hero .cta { opacity: 1; transform: none; }
   .js [data-reveal]:not(.in) { opacity: 1; transform: none; }
   .js .line { opacity: 1; filter: none; }
-  .js .lines-note { opacity: 1; transform: none; }
 }
