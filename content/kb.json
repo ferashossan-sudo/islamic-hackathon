@@ -391,7 +391,7 @@
       "kawn-god-existence",
       "kawn-science-philosophy"
     ],
-    "featured": 2,
+    "featured": false,
     "prepared_by": "فراس",
     "drafted_with_ai": true,
     "review_notes": [
@@ -1596,7 +1596,7 @@
       "kawn-who-created-god",
       "kawn-science-enough"
     ],
-    "featured": 5,
+    "featured": 1,
     "prepared_by": "فراس",
     "drafted_with_ai": true,
     "review_notes": [
@@ -11278,7 +11278,7 @@
       "kawn-god-existence",
       "tasawur-tawhid"
     ],
-    "featured": false,
+    "featured": 2,
     "prepared_by": "فراس",
     "drafted_with_ai": true,
     "review_notes": [],

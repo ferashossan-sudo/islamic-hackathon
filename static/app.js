@@ -586,6 +586,7 @@
     });
     const sources = sourcesInto(card, blocks);
     appendToLog(card);
+    if (sources) addQrCodes();  // ready for «حفظ المحادثة PDF», also from the browser's own print menu
     scrollToEnd(card, "start");
     typeIn(card.querySelector(".block-chat, .block-answer, .block-reasoning"), sources);
   }
@@ -709,10 +710,71 @@
   });
 
   // «حفظ المحادثة PDF»: the browser's print dialog, where «Save as PDF» keeps the conversation on the person's own
-  // device. Nothing is sent anywhere. Every folded part (sources, the approved card) is opened for the copy, and the
-  // print stylesheet writes each link's address next to it, so the sources can be checked later from the PDF.
+  // device. The conversation is not sent anywhere: only the addresses of its sources go to the server, which returns
+  // a QR code for each one in the approved answers, so a source opens from the printed page with a phone camera.
+  // Every folded part (sources, the approved card) is opened for the copy; a source without a code keeps its address.
+  function qrSvg(rows) {
+    const quiet = 4;  // the white margin the QR standard asks for
+    const size = rows.length + 2 * quiet;
+    const svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("class", "qr");
+    svg.setAttribute("viewBox", "0 0 " + size + " " + size);
+    svg.setAttribute("shape-rendering", "crispEdges");
+    svg.setAttribute("aria-hidden", "true");
+    const back = document.createElementNS(SVG_NS, "rect");
+    back.setAttribute("width", size);
+    back.setAttribute("height", size);
+    back.setAttribute("fill", "#fff");
+    let d = "";
+    rows.forEach((row, y) => {
+      for (let x = 0; x < row.length; x += 1) {
+        if (row[x] !== "1") continue;
+        let run = 1;
+        while (row[x + run] === "1") run += 1;
+        d += "M" + (x + quiet) + " " + (y + quiet) + "h" + run + "v1h-" + run + "z";
+        x += run - 1;
+      }
+    });
+    const dark = document.createElementNS(SVG_NS, "path");
+    dark.setAttribute("d", d);
+    dark.setAttribute("fill", "#000");
+    svg.append(back, dark);
+    return svg;
+  }
+
+  let qrPending = null;
+  function addQrCodes() {
+    if (!qrPending) qrPending = fetchQrCodes().finally(() => { qrPending = null; });
+    return qrPending;
+  }
+
+  async function fetchQrCodes() {
+    const links = Array.from(log.querySelectorAll(".sources-compact li > a"))
+      .filter((a) => !a.parentElement.querySelector(".qr"));
+    const urls = Array.from(new Set(links.map((a) => a.getAttribute("href")))).slice(0, 120);
+    if (!urls.length) return;
+    try {
+      const res = await fetch("/api/qr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urls }),
+      });
+      if (!res.ok) return;
+      const codes = (await res.json()).codes || {};
+      links.forEach((a) => {
+        const rows = codes[a.getAttribute("href")];
+        if (!rows || a.parentElement.querySelector(".qr")) return;
+        a.parentElement.classList.add("has-qr");
+        a.parentElement.append(qrSvg(rows));
+      });
+    } catch (err) {
+      // offline or refused: the printed sources keep their addresses
+    }
+  }
+
   let reopened = [];
   window.addEventListener("beforeprint", () => {
+    addQrCodes();  // any code still missing (normally fetched with each answer)
     reopened = Array.from(log.querySelectorAll("details:not([open])"));
     reopened.forEach((d) => { d.open = true; });
     const date = document.getElementById("print-date");
@@ -783,7 +845,11 @@
   });
   document.getElementById("menu-open").addEventListener("click", () => openSheet("menu"));
   document.getElementById("m-new").addEventListener("click", () => openSheet("clear"));
-  document.getElementById("m-pdf").addEventListener("click", () => closeSheet(() => window.print()));
+  document.getElementById("m-pdf").addEventListener("click", () => {
+    // the codes are usually there already (fetched with each answer); never wait more than 2.5 s for them
+    const ready = Promise.race([addQrCodes(), new Promise((done) => window.setTimeout(done, 2500))]);
+    closeSheet(() => ready.finally(() => window.print()));
+  });
   document.getElementById("confirm-clear").addEventListener("click", () => closeSheet(clearConversation));
 
   // Every visit: the splash, «أسئلتك الكبيرة تستحق إجابة مقنعة», then «قبل أن نبدأ» with three confirmations.

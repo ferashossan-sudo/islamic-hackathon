@@ -8,7 +8,11 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from app import compose, kb, pipeline, router, texts
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from app import compose, kb, pipeline, qr, router, texts
 from app.config import load_settings
 from app.limits import LIMITER
 from app.pages import render_index
@@ -38,6 +42,8 @@ PREVIEW_DRAFTS = settings.app_env == "dev" and os.environ.get("PREVIEW_DRAFTS", 
 if PREVIEW_DRAFTS:
     APPROVED = kb.preview_drafts()
 KB_HASH = kb.kb_hash(APPROVED)
+SOURCE_URLS = qr.source_urls(APPROVED)
+qr.warm(SOURCE_URLS)
 pipeline.load(APPROVED)
 
 SECURITY_HEADERS = {
@@ -52,7 +58,7 @@ SECURITY_HEADERS = {
     "Permissions-Policy": "camera=(), microphone=(), geolocation=(), interest-cohort=()",
 }
 # Only these paths are logged by name; any other path is logged as "other" so no visitor text reaches the log.
-LOGGED_PATHS = {"/", "/chat", "/health", "/api/config", "/api/chat", "/api/selftest", "/static/app.js",
+LOGGED_PATHS = {"/", "/chat", "/health", "/api/config", "/api/chat", "/api/qr", "/api/selftest", "/static/app.js",
                 "/static/styles.css"}
 
 app = FastAPI(title="Litatma'inna Qalbi", docs_url=None, redoc_url=None, openapi_url=None)
@@ -133,6 +139,18 @@ def _featured_rank(entry: dict) -> int:
     """
     rank = entry["featured"]
     return rank if type(rank) is int else 1000
+
+
+class QrRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    urls: list[Annotated[str, Field(max_length=600)]] = Field(max_length=120)
+
+
+@app.post("/api/qr")
+def qr_codes(req: QrRequest) -> dict:  # plain def: building a code is CPU work, so it runs off the event loop
+    """«حفظ المحادثة PDF»: a QR code for each source shown in the conversation. Addresses that are not in the approved
+    answers are left out, so this never encodes text a visitor sent."""
+    return {"codes": {url: qr.modules(url) for url in dict.fromkeys(req.urls) if url in SOURCE_URLS}}
 
 
 @app.get("/api/config")

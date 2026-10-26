@@ -800,6 +800,7 @@ p.verse-ref { margin: 0 0 10px; white-space: normal; }
 }
 
 .print-only { display: none; }
+.qr { display: none; }
 
 /* ---------- Motion ---------- */
 @keyframes lq-dot { 0%, 60%, to { opacity: .4; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-4px); } }
@@ -870,6 +871,19 @@ p.verse-ref { margin: 0 0 10px; white-space: normal; }
   a { color: #000; text-decoration: underline; }
   a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 9pt; color: #333; word-break: break-all; }
   a[href^="tel:"]::after, a.site-link::after { content: ""; }  /* a referral address is its own link text */
+  /* the sources as a grid of QR codes, each with its name under it */
+  .sources-compact ul {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 14px;
+    list-style: none; margin: 8px 0 0; padding: 0;
+  }
+  .sources-compact { break-inside: avoid-page; }  /* the codes stay together with their heading */
+  .sources-compact li { break-inside: avoid; font-size: 8.5pt; line-height: 1.5; }
+  .sources-compact li a { color: #222; }
+  .sources-compact li:not(.has-qr) { grid-column: 1 / -1; }  /* no code: a full line with its address */
+  .sources-compact li.has-qr { display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .sources-compact li.has-qr .qr { display: block; order: -1; inline-size: 28mm; block-size: 28mm; margin-block-end: 4px; }
+  .sources-compact li.has-qr a { text-decoration: none; }
+  .sources-compact li.has-qr a::after { content: ""; }
 }
 
 @media print {

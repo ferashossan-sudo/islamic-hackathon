@@ -60,6 +60,8 @@ python-dotenv==1.2.4
     # via uvicorn
 pyyaml==6.0.3
     # via uvicorn
+segno==1.6.6
+    # via litmainna-qalbi
 sniffio==1.3.1
     # via anthropic
 starlette==1.7.0
