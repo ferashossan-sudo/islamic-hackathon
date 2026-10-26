@@ -109,6 +109,14 @@ def test_static_files_are_revalidated_so_a_deploy_reaches_phones_at_once():
         assert client.get(path).headers["cache-control"] == "no-cache"
 
 
+def test_pages_load_scripts_and_styles_at_this_deploys_address():
+    chat_page, site_page = client.get("/chat").text, client.get("/").text
+    for page, paths in ((chat_page, ("/static/app.js", "/static/styles.css")),
+                        (site_page, ("/static/site/site.js", "/static/site/site.css", "/static/site/assets/demo.mp4"))):
+        for path in paths:
+            assert f'"{path}?v=' in page and f'"{path}"' not in page
+
+
 def test_no_inline_script_style_or_handlers():
     pages = [ROOT / "app" / "templates" / "index.html", ROOT / "static" / "site" / "index.html"]
     sources = [*pages, *(ROOT / "static").glob("*.js"), *(ROOT / "static" / "site").glob("*.js")]

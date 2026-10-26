@@ -836,4 +836,10 @@
   window.addEventListener("pageshow", (event) => {
     if (event.persisted) window.location.reload();
   });
+  // Coming back to a tab or home-screen app left in the background for two minutes or more counts as a new visit too.
+  let hiddenAt = 0;
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) hiddenAt = Date.now();
+    else if (hiddenAt && Date.now() - hiddenAt >= 120000) window.location.reload();
+  });
 })();

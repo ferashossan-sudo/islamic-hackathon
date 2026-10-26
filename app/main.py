@@ -17,9 +17,21 @@ from app.usage import log_event
 
 ROOT = Path(__file__).resolve().parent.parent
 settings = load_settings()
-INDEX_HTML = render_index(settings)
+STAMPED = ("/static/app.js", "/static/styles.css", "/static/site/site.js", "/static/site/site.css",
+           "/static/site/assets/demo.mp4")
+
+
+def stamped(html: str) -> str:
+    """Give the scripts, styles and recording each deploy's own address (?v=<commit>), so a phone that kept an old
+    copy still loads the new one."""
+    for path in STAMPED:
+        html = html.replace(f'"{path}"', f'"{path}?v={settings.version}"')
+    return html
+
+
+INDEX_HTML = stamped(render_index(settings))
 # The showcase page at the root (the address on the organizers' QR code); the chat itself is at /chat.
-SITE_HTML = (ROOT / "static" / "site" / "index.html").read_text(encoding="utf-8")
+SITE_HTML = stamped((ROOT / "static" / "site" / "index.html").read_text(encoding="utf-8"))
 APPROVED = kb.load_approved()  # refuses to start if an approved entry breaks a rule
 # Local preview of drafts for the team only: never in production, and the page says so in a banner.
 PREVIEW_DRAFTS = settings.app_env == "dev" and os.environ.get("PREVIEW_DRAFTS", "").lower() == "true"
