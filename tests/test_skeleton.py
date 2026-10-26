@@ -23,13 +23,34 @@ def test_health():
 
 
 def test_index_shows_disclosure_and_privacy():
-    r = client.get("/")
+    r = client.get("/chat")
     assert r.status_code == 200
     html = r.text
     assert texts.text("disclosure_header") in html
     assert texts.text("disclosure") in html
     assert 'id="privacy"' in html
     assert "{{" not in html
+
+
+def test_root_is_the_showcase_and_links_to_the_chat():
+    r = client.get("/")
+    assert r.status_code == 200
+    html = r.text
+    assert "<title>ليطمئنّ قلبي" in html
+    assert 'href="/chat"' in html
+    assert not re.search(r"\{[A-Z_]+\}", html), "unfilled placeholder"
+    assert "media-src 'self' blob:" in r.headers["content-security-policy"]
+
+
+def test_old_root_links_with_switches_still_open_the_chat():
+    for query in ("mode=offline", "intro"):
+        r = client.get("/?" + query, follow_redirects=False)
+        assert r.status_code == 307
+        assert r.headers["location"] == "/chat?" + query
+    # a shared link's tracking tags keep the showcase
+    r = client.get("/?utm_source=qr&fbclid=abc", follow_redirects=False)
+    assert r.status_code == 200
+    assert "<title>ليطمئنّ قلبي" in r.text
 
 
 def test_chat_returns_fixed_abstention_contract():
@@ -84,12 +105,14 @@ def test_security_headers_on_page_and_api():
 
 
 def test_no_inline_script_style_or_handlers():
-    sources = [ROOT / "app" / "templates" / "index.html", *(ROOT / "static").glob("*.js")]
-    html = (ROOT / "app" / "templates" / "index.html").read_text(encoding="utf-8")
-    assert not re.search(r"<script(?![^>]*\bsrc=)[^>]*>", html), "inline <script>"
-    assert "<style" not in html
-    assert not re.search(r"\sstyle=", html)
-    assert not re.search(r"\son[a-z]+=", html), "inline event handler"
+    pages = [ROOT / "app" / "templates" / "index.html", ROOT / "static" / "site" / "index.html"]
+    sources = [*pages, *(ROOT / "static").glob("*.js"), *(ROOT / "static" / "site").glob("*.js")]
+    for page in pages:
+        html = page.read_text(encoding="utf-8")
+        assert not re.search(r"<script(?![^>]*\bsrc=)[^>]*>", html), "inline <script>"
+        assert "<style" not in html
+        assert not re.search(r"\sstyle=", html)
+        assert not re.search(r"\son[a-z]+=", html), "inline event handler"
     for path in sources:
         assert "innerHTML" not in path.read_text(encoding="utf-8"), path.name
 

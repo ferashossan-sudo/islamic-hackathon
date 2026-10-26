@@ -5,7 +5,7 @@ from time import perf_counter
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import compose, kb, pipeline, router, texts
@@ -18,6 +18,8 @@ from app.usage import log_event
 ROOT = Path(__file__).resolve().parent.parent
 settings = load_settings()
 INDEX_HTML = render_index(settings)
+# The showcase page at the root (the address on the organizers' QR code); the chat itself is at /chat.
+SITE_HTML = (ROOT / "static" / "site" / "index.html").read_text(encoding="utf-8")
 APPROVED = kb.load_approved()  # refuses to start if an approved entry breaks a rule
 # Local preview of drafts for the team only: never in production, and the page says so in a banner.
 PREVIEW_DRAFTS = settings.app_env == "dev" and os.environ.get("PREVIEW_DRAFTS", "").lower() == "true"
@@ -29,7 +31,7 @@ pipeline.load(APPROVED)
 SECURITY_HEADERS = {
     "Content-Security-Policy": (
         "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
-        "font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; "
+        "font-src 'self'; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'none'; "
         "form-action 'self'; frame-ancestors 'none'"
     ),
     "X-Content-Type-Options": "nosniff",
@@ -38,7 +40,8 @@ SECURITY_HEADERS = {
     "Permissions-Policy": "camera=(), microphone=(), geolocation=(), interest-cohort=()",
 }
 # Only these paths are logged by name; any other path is logged as "other" so no visitor text reaches the log.
-LOGGED_PATHS = {"/", "/health", "/api/config", "/api/chat", "/api/selftest", "/static/app.js", "/static/styles.css"}
+LOGGED_PATHS = {"/", "/chat", "/health", "/api/config", "/api/chat", "/api/selftest", "/static/app.js",
+                "/static/styles.css"}
 
 app = FastAPI(title="Litatma'inna Qalbi", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
@@ -69,6 +72,15 @@ async def invalid_request(request: Request, exc: RequestValidationError):
 
 
 @app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
+async def site(request: Request):
+    # Older links put the chat's switches on the root («/?mode=offline», «/?intro»): they still open the chat.
+    # Other parameters (a shared link's tracking tags) keep the showcase.
+    if "mode" in request.query_params or "intro" in request.query_params:
+        return RedirectResponse("/chat?" + request.url.query, status_code=307)
+    return HTMLResponse(SITE_HTML)
+
+
+@app.api_route("/chat", methods=["GET", "HEAD"], response_class=HTMLResponse)
 async def index() -> HTMLResponse:
     return HTMLResponse(INDEX_HTML)
 
