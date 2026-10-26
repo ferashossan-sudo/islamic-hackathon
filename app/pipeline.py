@@ -201,12 +201,15 @@ def lexical_decision(message: str, s: Settings, req: ChatRequest | None = None) 
     hits = STATE.index.search(message) if STATE.index else []
     top_score = hits[0][1] if hits else 0.0
     second = hits[1][1] if len(hits) > 1 else 0.0
+    stems = set().union(*(guards._stems(w) for w in arabic.words(message))) if message else set()
+    rulings = bool(stems & {arabic.normalize(w) for w in RULING_WORDS})
+    if (claim := claim_evidence(message)) and not rulings:
+        return no_evidence(_claim_nearest(claim, None), _claim_hadith(claim), s).model_copy(update={"degraded": True})
     if hits and top_score >= LEX_T_HI and top_score - second >= LEX_MARGIN:
         if req is not None and req.context.repeat_count >= 2 and answered_before(hits[0][0], req):
             return repeat_response(hits[0][0], s, degraded=True)
         return answer(hits[0][0], s, degraded=True)
-    stems = set().union(*(guards._stems(w) for w in arabic.words(message))) if message else set()
-    if stems & {arabic.normalize(w) for w in RULING_WORDS}:
+    if rulings:
         return ChatResponse(kind="refer", version=s.version, degraded=True, blocks=[message_block("referral_fiqh")])
     response = abstain(s, degraded=True)
     # Not sure enough to answer: offer the closest approved questions («ربما تقصد») so one tap gets there.
@@ -228,6 +231,47 @@ _SOURCE_ASK = re.compile(r"مصدر|المصدر|مرجع|من وين|منين|�
 
 def _asks_hadith_grade(message: str) -> bool:
     return bool(_HADITH_GRADE.search(message) and _GRADE_WORDS.search(message))
+
+
+# An explicit request for a text as proof of a claim («عطني آية تقول إن الأرض تدور»، «أبي حديث يثبت أن…»): an approved
+# answer on the topic may hold verses, but none was approved as saying that, so the reply is the approved «no matching
+# evidence» with a link to the nearest approved answer (C-24). Only a request word followed by an indefinite text
+# matches, on the normalized words: a question that quotes a text to ask about it («الحديث يقول إن…، كيف؟») or asks
+# whether one exists («هل فيه آية…») goes through the router and its evidence_request as before.
+_CLAIM_EVIDENCE = re.compile(
+    r"(?<!\S)(?:عطني|اعطني|عطنا|اعطنا|ابي|ابغي|ابغا|بغيت|اريد|هات|هاتو|جيب|جيبو|طلع|اذكر|ورني|وريني|دلني|اكتب)"
+    r"\s+(?:لي\s+|لنا\s+|علي\s+)?(?:\S+\s+)?(?P<noun>ايه|ايات|حديث|احاديث|دليل|دليلا|نص|نصا)(?:\s+\S+){0,5}?\s+"
+    r"(?:تقول|يقول|تثبت|يثبت|تدل|يدل|تذكر|يذكر|تبين|يبين|توكد|يوكد|تنص|ينص|تصرح|يصرح|تشير|يشير|تفيد|يفيد|تبرهن|يبرهن)"
+    r"\s+(?:علي\s+|الي\s+)?(?:ان|بان|انه|انو)\s")
+
+
+def claim_evidence(message: str) -> re.Match | None:
+    return _CLAIM_EVIDENCE.search(" ".join(arabic.words(message)) + " ")
+
+
+def asks_claim_evidence(message: str) -> bool:
+    return claim_evidence(message) is not None
+
+
+def _claim_hadith(claim: re.Match) -> bool:
+    return claim.group("noun") in ("حديث", "احاديث")
+
+
+def _claim_nearest(claim: re.Match, fallback: dict | None) -> dict | None:
+    """The approved answer closest to the claim itself (the words after «أن»), with the topic filter of «ربما تقصد»."""
+    near = _maybe_block(claim.string[claim.end():])
+    return STATE.entries.get(near[0]["items"][0]["id"]) if near else fallback
+
+
+def no_evidence(entry: dict | None, hadith: bool, s: Settings) -> ChatResponse:
+    """«لم أجد … دليلاً مطابقاً لطلبك»، for hadith the verification site too, and the nearest approved answer to tap."""
+    blocks = [message_block("no_matching_evidence")]
+    if hadith:
+        blocks.append(message_block("no_matching_evidence_hadith"))
+    if entry:
+        blocks.append({"type": "related", "title": texts.pairs("ui_labels")["may_help"],
+                       "items": [{"id": entry["id"], "question": compose.question_text(entry["question"])}]})
+    return ChatResponse(kind="abstain", version=s.version, blocks=blocks)
 
 
 MAYBE_MIN_SCORE = 0.2
@@ -301,6 +345,10 @@ def model_decision(decision, message: str, prev: dict | None, req: ChatRequest, 
         extra = _suggest_block(s) if key == "referral_other_topic" else []
         return ChatResponse(kind="refer", version=s.version, blocks=[message_block(key), *extra])
     entry = STATE.entries.get(decision.entry_id)
+    if claim := claim_evidence(message):  # before the repeat and follow-up rules, so it holds mid-conversation too
+        on_prev = prev is not None and (decision.route == "followup" or _stays_on_topic(message, prev))
+        same_topic = prev if on_prev else None
+        return no_evidence(entry or same_topic or _claim_nearest(claim, None), _claim_hadith(claim), s)
     # The repeat rule comes before follow-up (decision table row 3): the third time, whatever the route.
     resolved = prev if decision.route == "followup" and prev is not None else entry
     if req.context.repeat_count >= 2 and resolved is not None and answered_before(resolved["id"], req):
@@ -316,13 +364,7 @@ def model_decision(decision, message: str, prev: dict | None, req: ChatRequest, 
     if decision.evidence_request != "none":
         has = bool(entry and (entry.get("hadiths") if decision.evidence_request == "hadith" else entry.get("verses")))
         if not has:
-            blocks = [message_block("no_matching_evidence")]
-            if decision.evidence_request == "hadith":
-                blocks.append(message_block("no_matching_evidence_hadith"))
-            if entry:
-                blocks.append({"type": "related", "title": texts.pairs("ui_labels")["may_help"],
-                               "items": [{"id": entry["id"], "question": compose.question_text(entry["question"])}]})
-            return ChatResponse(kind="abstain", version=s.version, blocks=blocks)
+            return no_evidence(entry, decision.evidence_request == "hadith", s)
     if (entry is None or decision.confidence == "low") and prev is not None and s.converse_enabled \
             and prev.get("chat") != "card_only" and _stays_on_topic(message, prev):
         # Mid-discussion, an objection the router could not place («قصصه منقولة من التوراة»): the dialogue stays

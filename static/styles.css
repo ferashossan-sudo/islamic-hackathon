@@ -561,7 +561,7 @@ svg { display: block; }
 }
 .typing-dots span:nth-child(2) { animation-delay: .18s; }
 .typing-dots span:nth-child(3) { animation-delay: .36s; }
-.typing-label { font-size: 13px; color: var(--muted); }
+.typing-label { font-size: 13px; color: var(--muted); animation: lq-fade-in .5s ease 3s backwards; }  /* only on a long wait */
 
 .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
 .tag {
@@ -588,14 +588,11 @@ svg { display: block; }
 .block-chat p:last-child { margin: 0; }
 .block-framing { color: var(--muted); font-size: 14px; }
 .tag-framing { margin-inline-end: 4px; }
+/* notices read as a quiet line of the conversation, not a box */
 .block-notice {
-  border-radius: 16px;
-  border: 1px solid rgba(223, 205, 172, .14);
-  background-color: rgba(223, 205, 172, .06);
-  padding: 10px 14px;
   font-size: 14px;
   line-height: 1.8;
-  color: var(--text-2);
+  color: var(--muted);
 }
 .block-title { margin: 0 0 8px; font-size: 14px; font-weight: 600; color: var(--accent); }
 .block-subtitle { margin: 14px 0 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
@@ -639,12 +636,8 @@ details > summary::-webkit-details-marker { display: none; }
 .full-answer[open] > :not(summary) { margin-block-start: 8px; }
 .hadith-long > summary { color: var(--accent); }
 
-.block-answer {
-  padding: 14px 16px;
-  border-radius: 20px;
-  border: 1px solid var(--line);
-  background-color: rgba(26, 22, 19, .6);
-}
+/* without a dialogue reply, the approved answer reads like one: plain text in the conversation, no frame */
+.block-answer { padding: 0; }
 .block-answer p { margin: 0 0 10px; }
 .explain { margin-block-start: 8px; }
 
@@ -850,6 +843,7 @@ p.verse-ref { margin: 0 0 10px; white-space: normal; }
     transition-delay: 0s !important;
     scroll-behavior: auto !important;
   }
+  .typing-label { animation: lq-fade-in 0s linear 3s backwards !important; }  /* still only on a long wait, no motion */
 }
 
 /* «حفظ المحادثة PDF»: the conversation, its sources and the approved cards, without the page's controls. */
@@ -875,7 +869,7 @@ p.verse-ref { margin: 0 0 10px; white-space: normal; }
   details > summary { font-weight: 700; }
   a { color: #000; text-decoration: underline; }
   a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 9pt; color: #333; word-break: break-all; }
-  a[href^="tel:"]::after { content: ""; }
+  a[href^="tel:"]::after, a.site-link::after { content: ""; }  /* a referral address is its own link text */
 }
 
 @media print {

@@ -128,7 +128,7 @@ async def _anthropic(s: Settings, model: str, payload_text: str, timeout: float)
 
 async def _anthropic_verify(s: Settings, model: str, payload_text: str, timeout: float) -> tuple[str, dict]:
     return await claude.generate(s.anthropic_api_key, model, VERIFY_RULES, payload_text, VERIFY_SCHEMA_ANTHROPIC,
-                                 timeout, max_tokens=1000)
+                                 timeout, max_tokens=3000)  # room for Haiku 5.5's adaptive thinking
 
 
 PROVIDERS = {"gemini": _gemini, "anthropic": _anthropic}
@@ -187,7 +187,7 @@ async def unsupported_claims(reply: str, entry: dict, s: Settings) -> list[str] 
     """G14: a second, strict call lists statements not supported by the approved entry. None if it failed."""
     chain = _chain(s, verify=True)
     if not chain:
-        return []  # no verifier available: rely on G13 alone
+        return None  # no verifier available: G14 cannot pass, so the approved card stands alone
     text = json.dumps({"material": material(entry), "reply": reply}, ensure_ascii=False)
     result = await _call("verify", chain, s, text, Verdict)
     return result.unsupported if result else None

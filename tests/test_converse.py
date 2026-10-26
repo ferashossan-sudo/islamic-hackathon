@@ -221,3 +221,57 @@ def test_requests_the_service_never_fulfils_get_a_fixed_explanation(fakes):
     assert "paraphrase_notice" in keys and "scholar_not_in_entry" in keys
     note = next(b for b in r.blocks if b.get("key") == "scholar_not_in_entry")
     assert "ابن تيمية" in note["text"]
+
+
+@pytest.mark.parametrize("message", ["عطني آية تقول إن الكون جاء صدفة", "أبغى آية تقول: إن الكون جاء صدفة",
+                                     "أبي حديث يقول إن الكون جاء صدفة", "هات دليل من القرآن يثبت أن الكون جاء صدفة",
+                                     "أعطني آيةً، تقولُ إنَّ الكونَ جاء صدفة"])
+def test_a_text_asked_as_proof_of_a_claim_gets_no_matching_evidence_and_the_nearest_answer(fakes, message):
+    # an approved answer on the topic may hold verses, but none was approved as saying that (C-24)
+    r = ask(message)
+    assert r.kind == "abstain" and r.blocks[0]["key"] == "no_matching_evidence" and fakes["payloads"] == []
+    assert r.blocks[-1]["type"] == "related" and r.blocks[-1]["items"][0]["id"] == "kawn-universe-x"
+    assert any(b.get("key") == "no_matching_evidence_hadith" for b in r.blocks) == ("حديث" in message)
+
+
+@pytest.mark.parametrize("message", ["عطني آية عن خلق الكون", "هل الكون صدفة؟", "ما معنى آية الطور؟", "هل حديث الذباب صحيح؟",
+                                     "وش معنى الآية اللي تقول إن النبي يخفي في نفسه شي؟",
+                                     "الآية تقول إن الشمس تغرب في عين حمئة، كيف والشمس ما تغرب أصلاً؟",
+                                     "الحديث يقول إن في أحد جناحي الذباب داء، كيف هذا علمياً؟",
+                                     "العلم الحديث يقول إن الإنسان أصله قرد", "هل فيه آية تقول إن الأرض كروية؟",
+                                     "النص يقول إن المرأة ترث نصف الرجل، ليش؟"])
+def test_other_questions_with_verse_words_are_not_claim_requests(message):
+    assert not pipeline.asks_claim_evidence(message)
+
+
+def test_without_a_verifier_the_dialogue_is_dropped(fakes, monkeypatch):
+    # G14 must pass for every reply: with no verifier configured, the approved card stands alone
+    monkeypatch.delitem(converse.VERIFIERS, "gemini")
+    assert asyncio.run(converse.unsupported_claims(GOOD, ENTRY, SETTINGS)) is None
+    r = ask("هل الكون صدفة؟")
+    assert r.kind == "answer" and r.blocks[0]["type"] != "chat"
+
+
+def test_a_claim_request_mid_conversation_gets_no_matching_evidence_too(fakes):
+    from app.schemas import ChatContext, RecentItem
+
+    async def followup_router(s, model, system, payload, timeout):
+        return json.dumps({"route": "followup", "entry_id": "none", "confidence": "high", "oos_reason": "none",
+                           "evidence_request": "verse", "framing": ""}), {}
+
+    pipeline_router = router.PROVIDERS["gemini"]
+    router.PROVIDERS["gemini"] = followup_router
+    try:
+        context = ChatContext(prev_entry_id="kawn-universe-x",
+                              recent=[RecentItem(entry_id="kawn-universe-x", kind="answer", layer="summary")])
+        r = asyncio.run(pipeline.handle(ChatRequest(message="طيب عطني آية تقول إن الكون جاء صدفة", context=context),
+                                        SETTINGS))[1]
+    finally:
+        router.PROVIDERS["gemini"] = pipeline_router
+    assert r.kind == "abstain" and r.blocks[0]["key"] == "no_matching_evidence" and fakes["payloads"] == []
+    assert r.blocks[-1]["items"][0]["id"] == "kawn-universe-x"
+
+
+def test_the_hadith_line_follows_the_text_asked_for():
+    assert pipeline._claim_hadith(pipeline.claim_evidence("أبي أحاديث تقول إن الأرض كروية"))
+    assert not pipeline._claim_hadith(pipeline.claim_evidence("عطني آية تقول إن العلم الحديث صح"))

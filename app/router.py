@@ -81,7 +81,7 @@ async def _anthropic(s: Settings, model: str, system: str, payload: str, timeout
     # The rules and the catalog are the same for every message: cached as one prefix.
     blocks = [{"type": "text", "text": rules}, {"type": "text", "text": cat, "cache_control": {"type": "ephemeral"}}]
     return await claude.generate(s.anthropic_api_key, model, blocks, payload, _schema(upper=False), timeout,
-                                 max_tokens=600)
+                                 max_tokens=2000)  # room for Haiku 5.5's adaptive thinking; the JSON itself is short
 
 
 PROVIDERS = {"gemini": _gemini, "anthropic": _anthropic}

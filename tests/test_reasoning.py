@@ -506,7 +506,7 @@ def test_frontend_shows_one_sources_line_under_the_reply_and_types_it_in():
     # The sharia reviewer: the reply talks in its own voice; under it, one line with the links to its sources only.
     js = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
     css = (ROOT / "static" / "styles.css").read_text(encoding="utf-8")
-    assert "function sourcesInto(card, blocks)" in js and '"block sources-compact toggle"' in js
+    assert "function sourcesInto(card, blocks)" in js and '"block sources-compact toggle tw-after"' in js
     assert 'const shown = chat ? ["chat", "message", "notice"]' in js  # no sharia line, approved card or review line
     assert 'if (block.key === "level_c_notice") return;' in js  # the misquote notice (G3) stays, the level line goes
     assert "compactSharia" not in js and "renderers.review(folded" not in js

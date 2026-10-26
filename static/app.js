@@ -159,12 +159,34 @@
     scrollToEnd(card);
   }
 
+  // When the visitor last opened a source or a referral site in a new tab, so coming back is not a new visit.
+  let linkAt = 0;
+
   function externalLink(text, url, className) {
     const link = el("a", className || null, text);
     link.href = url;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
+    const mark = () => { linkAt = Date.now(); };
+    link.addEventListener("click", mark);
+    link.addEventListener("auxclick", mark);
     return link;
+  }
+
+  // The referral sites named in the approved texts become links; nothing else in a message does.
+  const LINKED_SITES = ["alifta.gov.sa", "dorar.net/hadith", "dorar.net/feqhia", "terminologyenc.com/en",
+    "islamic-content.com/dictionary", "islamhouse.com/en"];
+  const SITE_PATTERN = new RegExp("(" + LINKED_SITES.map((x) => x.replace(/[./]/g, "\\$&")).join("|") + ")");
+
+  function linkedParagraphs(parent, text) {
+    String(text || "").split("\n").forEach((line) => {
+      if (!line.trim()) return;
+      const p = el("p");
+      line.split(SITE_PATTERN).forEach((part, i) => {
+        if (part) p.append(i % 2 ? externalLink(part, "https://" + part, "site-link") : part);
+      });
+      parent.append(p);
+    });
   }
 
   // Text with verse segments: verses come from the mushaf on the server and are shown with their reference.
@@ -248,7 +270,7 @@
         box.lang = "en";
         box.dir = "ltr";
       }
-      paragraphs(box, b.text);
+      linkedParagraphs(box, b.text);
       card.append(box);
     },
     notice(card, b) {
@@ -449,7 +471,7 @@
     });
     of("science").forEach((b) => (b.items || []).forEach((s) => add(s.source, s.url)));
     if (!items.length) return null;
-    const box = el("details", "block sources-compact toggle");
+    const box = el("details", "block sources-compact toggle tw-after");
     box.append(summary(label("sources", "المصادر") + " (" + items.length + ")", "link"));
     const list = el("ul");
     items.forEach((s) => {
@@ -466,8 +488,15 @@
   // whole. The text is in the page from the start (only its opacity changes), so the card never jumps and screen
   // readers get all of it. The sources line fades in when the reply is done.
   function typeIn(box, after) {
-    if (after) after.classList.add("tw-after");
-    const finish = () => { if (after) after.classList.add("in"); };
+    const afters = [].concat(after || []).filter(Boolean);
+    afters.forEach((a) => {
+      a.classList.add("tw-after");
+      a.inert = true;  // not reachable by keyboard or touch while still invisible
+    });
+    const finish = () => afters.forEach((a) => {
+      a.inert = false;
+      a.classList.add("in");
+    });
     if (reducedMotion || !box) {
       finish();
       return;
@@ -589,7 +618,7 @@
     box.setAttribute("role", "status");
     const dots = el("div", "typing-dots");
     dots.append(el("span"), el("span"), el("span"));
-    box.append(dots, el("span", "visually-hidden", label("loading", "…")));
+    box.append(dots, el("span", "typing-label", label("loading", "…")));  // shows after a few seconds
     return box;
   }
 
@@ -837,9 +866,17 @@
     if (event.persisted) window.location.reload();
   });
   // Coming back to a tab or home-screen app left in the background for two minutes or more counts as a new visit too.
+  // Reading a source or a referral site opened in a new tab (the page hid right after the tap) keeps the
+  // conversation for up to twenty minutes.
   let hiddenAt = 0;
+  let readingSource = false;
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) hiddenAt = Date.now();
-    else if (hiddenAt && Date.now() - hiddenAt >= 120000) window.location.reload();
+    if (document.hidden) {
+      hiddenAt = Date.now();
+      readingSource = hiddenAt - linkAt < 3000;
+      return;
+    }
+    const away = hiddenAt ? Date.now() - hiddenAt : 0;
+    if (away >= (readingSource ? 1200000 : 120000)) window.location.reload();
   });
 })();

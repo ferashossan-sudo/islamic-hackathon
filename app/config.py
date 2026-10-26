@@ -5,13 +5,13 @@ from dataclasses import dataclass
 # Each role names a chain of free-tier models, each with its own daily quota (gemini-3.5-flash-lite: 500 requests;
 # gemini-3.5-flash: 20, too few). The next model answers when one is out of quota or busy (app/gemini.py).
 # The verifier chain starts with the model that scored 8/8 in eval/check_verifier.py.
-# With Anthropic (paid): Claude Haiku 4.5 understands the question and checks the reply (fast, cheap), and Claude
+# With Anthropic (paid): Claude Haiku 5.5 understands the question and checks the reply (fast, cheap), and Claude
 # Sonnet 5.5 holds the conversation; the Gemini chains stay as the backup when a Claude call fails.
-DEFAULT_MODELS = {"gemini": "gemini-3.5-flash-lite,gemini-3.1-flash-lite", "anthropic": "claude-haiku-4-5"}
+DEFAULT_MODELS = {"gemini": "gemini-3.5-flash-lite,gemini-3.1-flash-lite", "anthropic": "claude-haiku-5-5"}
 DEFAULT_CONVERSE_MODELS = {"gemini": "gemini-3.1-flash-lite,gemini-3.5-flash-lite", "anthropic": "claude-sonnet-5-5"}
 # gemma-4-26b-a4b-it flagged 6/6 invented claims when it answered but failed 2 of 8 calls, so it comes last.
 DEFAULT_VERIFY_MODELS = {"gemini": "gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemma-4-26b-a4b-it",
-                         "anthropic": "claude-haiku-4-5"}
+                         "anthropic": "claude-haiku-5-5"}
 
 
 def with_fallbacks(models: str, defaults: str) -> str:

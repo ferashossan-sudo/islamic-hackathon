@@ -52,6 +52,24 @@ def test_haiku_gets_no_effort_and_no_sampling_parameters(monkeypatch):
     assert "effort" not in sent["output_config"] and "betas" not in sent and "fallbacks" not in sent
 
 
+def test_haiku_5_5_gets_low_effort_no_fallback_and_counts_toward_the_daily_budget(monkeypatch):
+    # Haiku 5.5 thinks adaptively (default effort medium), rejects sampling parameters and has no server-side
+    # fallback; a price missing from PRICES would make its calls cost 0 in the daily budget.
+    calls = fake_client(monkeypatch)
+    text, usage = asyncio.run(claude.generate("k", "claude-haiku-5-5", "rules", "{}", SCHEMA, 10, 2000))
+    sent = calls[0]
+    assert text == '{"reply": "نعم"}'
+    assert sent["output_config"]["effort"] == "low"
+    assert "betas" not in sent and "fallbacks" not in sent
+    assert "temperature" not in sent and "thinking" not in sent
+    assert usage["usd"] == round((1000 * 0.10 + 100 * 0.50 + 9000 * 0.01) / 1_000_000, 6)
+
+
+def test_every_default_claude_model_has_a_price():
+    for models in (config.DEFAULT_MODELS, config.DEFAULT_CONVERSE_MODELS, config.DEFAULT_VERIFY_MODELS):
+        assert models["anthropic"] in claude.PRICES
+
+
 @pytest.mark.parametrize("stop", ["refusal", "max_tokens"])
 def test_a_refused_or_cut_reply_raises(monkeypatch, stop):
     fake_client(monkeypatch, stop_reason=stop)
@@ -65,8 +83,8 @@ def test_settings_per_role_and_a_gemini_name_left_in_the_dashboard(monkeypatch):
     for name in ("CONVERSE_PROVIDER", "VERIFY_PROVIDER", "CONVERSE_MODEL", "VERIFY_MODEL"):
         monkeypatch.delenv(name, raising=False)
     s = config.load_settings()
-    assert (s.router_model, s.converse_model, s.verify_model) == ("claude-haiku-4-5", "claude-sonnet-5-5",
-                                                                   "claude-haiku-4-5")
+    assert (s.router_model, s.converse_model, s.verify_model) == ("claude-haiku-5-5", "claude-sonnet-5-5",
+                                                                   "claude-haiku-5-5")
     assert (s.converse_provider, s.verify_provider) == ("anthropic", "anthropic")
     assert s.gemini_router_model.startswith("gemini-3.5-flash-lite")  # the backup keeps the dashboard's Gemini name
 
