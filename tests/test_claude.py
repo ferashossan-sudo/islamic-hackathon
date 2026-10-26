@@ -84,7 +84,7 @@ def test_settings_per_role_and_a_gemini_name_left_in_the_dashboard(monkeypatch):
         monkeypatch.delenv(name, raising=False)
     s = config.load_settings()
     assert (s.router_model, s.converse_model, s.verify_model) == ("claude-haiku-5-5", "claude-sonnet-5-5",
-                                                                   "claude-haiku-5-5")
+                                                                   "claude-haiku-4-5")
     assert (s.converse_provider, s.verify_provider) == ("anthropic", "anthropic")
     assert s.gemini_router_model.startswith("gemini-3.5-flash-lite")  # the backup keeps the dashboard's Gemini name
 
