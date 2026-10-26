@@ -125,18 +125,14 @@
     return (config.labels && config.labels[key]) || fallback;
   }
 
-  function sessionId() {
+  // A new id for every page load: each visit is a new person, also on a shared exhibition device.
+  const SID = (() => {
     try {
-      let id = window.sessionStorage.getItem("sid");
-      if (!id) {
-        id = window.crypto.randomUUID();
-        window.sessionStorage.setItem("sid", id);
-      }
-      return id;
+      return window.crypto.randomUUID();
     } catch (e) {
       return "";
     }
-  }
+  })();
 
   function el(tag, className, text) {
     const node = document.createElement(tag);
@@ -619,7 +615,7 @@
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, sid: sessionId(), turn: turn, mode: mode, context: context,
+        body: JSON.stringify({ message: text, sid: SID, turn: turn, mode: mode, context: context,
                                history: history.slice(-4) }),
       });
       const data = await response.json();
@@ -761,25 +757,16 @@
   document.getElementById("m-pdf").addEventListener("click", () => closeSheet(() => window.print()));
   document.getElementById("confirm-clear").addEventListener("click", () => closeSheet(clearConversation));
 
-  // First visit: the splash, «أسئلتك الكبيرة تستحق إجابة مقنعة», then «قبل أن نبدأ» with three confirmations.
-  // Only the fact that they were confirmed is remembered on this device, so the next visit opens the conversation.
-  const CONSENT_KEY = "lq-consent-v1";
+  // Every visit: the splash, «أسئلتك الكبيرة تستحق إجابة مقنعة», then «قبل أن نبدأ» with three confirmations.
+  // Nothing is remembered, so each person who opens it (on a shared device too) reads the introduction first.
   const onboarding = document.getElementById("onboarding");
-  // «?intro», for filming the demo: the introduction again even after consent, and the splash waits for a click.
+  // «?intro», for filming the demo: the splash waits for a click.
   const INTRO = new URLSearchParams(window.location.search).has("intro");
 
-  function consentGiven() {
-    try {
-      return window.localStorage.getItem(CONSENT_KEY) === "1";
-    } catch (e) {
-      return false;
-    }
-  }
-
-  function showApp(arrive) {
+  function showApp() {
     onboarding.hidden = true;
     app.hidden = false;
-    if (arrive) app.classList.add("arrive");
+    app.classList.add("arrive");
     updateCounter();
   }
 
@@ -838,17 +825,15 @@
         return;
       }
       if (!allChecked()) return;
-      try {
-        window.localStorage.setItem(CONSENT_KEY, "1");
-      } catch (e) { /* private window: asked again next visit */ }
       onboarding.classList.add("leaving");
-      later(() => showApp(true), 260);
+      later(showApp, 260);
     });
   }
 
-  if (consentGiven() && !INTRO) {
-    showApp(false);
-  } else {
-    startOnboarding();
-  }
+  startOnboarding();
+  // Back or forward to a page kept in the browser's memory would bring back the last visitor's conversation:
+  // reload instead, so it starts with the introduction.
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) window.location.reload();
+  });
 })();

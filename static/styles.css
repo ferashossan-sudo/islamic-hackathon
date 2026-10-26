@@ -173,7 +173,7 @@ svg { display: block; }
 
 .hint { color: var(--muted); font-size: 13px; line-height: 1.8; }
 
-/* ---------- First visit: splash, welcome, before we start ---------- */
+/* ---------- Every visit: splash, welcome, before we start ---------- */
 .onb {
   position: fixed;
   inset: 0;

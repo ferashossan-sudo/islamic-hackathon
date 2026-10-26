@@ -32,23 +32,27 @@ document.documentElement.classList.add("js");
   }, { rootMargin: "-45% 0px -50% 0px" });
   document.querySelectorAll("main > section[id]").forEach((s) => navSpy.observe(s));
 
-  // count-up for each number, once, when the number itself comes into view
+  // each number waits at 0 and counts up to its value once it is well in view, a moment after its block has faded
+  // in, slowly enough to be seen climbing
   const countUp = (el) => {
     const end = Number(el.dataset.count);
     if (reduce || end === 0) { el.textContent = String(end); return; }
-    const t0 = performance.now(), dur = 1300;
+    const delay = 350, dur = 2000;
+    let t0 = 0;
     const tick = (t) => {
-      const k = Math.min(1, (t - t0) / dur);
-      el.textContent = String(Math.round(end * (1 - Math.pow(1 - k, 3))));
+      if (!t0) t0 = t + delay;
+      const k = Math.min(1, Math.max(0, (t - t0) / dur));
+      el.textContent = String(Math.round(end * (1 - Math.pow(1 - k, 2))));
       if (k < 1) requestAnimationFrame(tick);
     };
-    el.textContent = "0";
     requestAnimationFrame(tick);
   };
+  const counts = [...document.querySelectorAll("[data-count]")];
+  if (!reduce) counts.forEach((el) => { el.textContent = "0"; });
   const counter = new IntersectionObserver((entries) => {
     for (const e of entries) if (e.isIntersecting) { countUp(e.target); counter.unobserve(e.target); }
-  }, { rootMargin: "0px 0px -15% 0px" });
-  document.querySelectorAll("[data-count]").forEach((el) => counter.observe(el));
+  }, { rootMargin: "0px 0px -22% 0px", threshold: 1 });
+  counts.forEach((el) => counter.observe(el));
 
   // reveal on scroll
   const reveal = new IntersectionObserver((entries) => {
@@ -76,79 +80,101 @@ document.documentElement.classList.add("js");
     }).observe(linesSec);
   }
 
-  // how it works: the recorded conversation plays by itself while it is on screen, from the question to the sources,
-  // and loops. The step it is at lights up, with a bar filling over that step's stretch (data-t, in seconds, up to the
-  // next step, the last up to the video's data-end); tapping a step jumps there, and a fade hides each cut
+  // how it works: the stage stays pinned while the scroll walks through the steps, one equal stretch of the track
+  // each. The step in view is lit, its bar fills towards the next one, and the recording plays that step's moment in
+  // a loop (from its data-t to the next step's, the last to the video's data-end), with a fade over each cut. Tapping
+  // a step scrolls to it; tapping the recording pauses it, and the play button (also shown when the phone refuses to
+  // autoplay, or with reduced motion) brings it back
   const video = document.getElementById("demo");
   const phone = document.querySelector(".phone");
   const playBtn = document.querySelector(".play");
-  const howSec = document.getElementById("how");
+  const track = document.querySelector(".how-track");
+  const stageEl = document.querySelector(".how-stage");
   const steps = [...document.querySelectorAll("[data-step]")];
   const bars = [...document.querySelectorAll("[data-bar]")];
-  if (video && phone && howSec && steps.length) {
+  if (video && phone && playBtn && track && stageEl && steps.length) {
+    const N = steps.length;
     const starts = steps.map((s) => Number(s.dataset.t));
-    const START = starts[0], END = Number(video.dataset.end) || 40.5;
+    const END = Number(video.dataset.end) || 40.5;
+    const ends = starts.map((t, k) => (k + 1 < N ? starts[k + 1] : END));
     const fills = steps.map((s) => s.querySelector(".step-bar i"));
     const barFills = bars.map((b) => b.querySelector("i"));
-    let at = -1, onScreen = false, frameId = 0, fadeTimer = 0;
+    let at = -1, onScreen = false, userPaused = false, wanted = false, pending = null;
+    let fadeTimer = 0, unfadeTimer = 0;
 
+    const start = () => video.play().then(() => { playBtn.hidden = true; })
+      .catch((e) => { if (e.name !== "AbortError") playBtn.hidden = false; });  // AbortError: paused before it began
+    const play = () => { if (!reduce && onScreen && video.src && !userPaused) start(); };
+    const jump = (t) => {
+      clearTimeout(fadeTimer); clearTimeout(unfadeTimer);
+      if (reduce) { try { video.currentTime = t; } catch (_) { /* stays where it is */ } return; }
+      video.classList.add("jump");
+      fadeTimer = setTimeout(() => {
+        video.addEventListener("seeked", () => video.classList.remove("jump"), { once: true });
+        unfadeTimer = setTimeout(() => video.classList.remove("jump"), 700);  // in case no seek happens
+        try { video.currentTime = t; } catch (_) { /* stays where it is */ }
+      }, 200);
+    };
+    // before the recording's metadata arrives only the latest wish counts
+    const go = (t) => {
+      if (video.readyState >= 1) { jump(t); return; }
+      if (pending === null) video.addEventListener("loadedmetadata", () => { const p = pending; pending = null; jump(p); }, { once: true });
+      pending = t;
+    };
+    const current = (el, on) => { if (on) el.setAttribute("aria-current", "step"); else el.removeAttribute("aria-current"); };
     const show = (i) => {
       if (i === at) return;
       at = i;
-      steps.forEach((s, k) => {
-        s.classList.toggle("on", k === i);
-        const b = s.querySelector("button");
-        if (k === i) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current");
-      });
-      bars.forEach((b, k) => b.classList.toggle("on", k === i));
+      const focused = document.activeElement;
+      steps.forEach((s, k) => { s.classList.toggle("on", k === i); current(s.querySelector("button"), k === i); });
+      bars.forEach((b, k) => current(b, k === i));
+      // on a phone only the current step shows: keep keyboard and screen-reader focus from falling off a hidden one
+      if (focused && bars[i] && bars[i].offsetParent !== null && steps.some((s, k) => k !== i && s.contains(focused))) bars[i].focus({ preventScroll: true });
+      if (video.src) go(starts[i]);
+      play();
     };
-    const paint = () => {
-      const t = video.currentTime;
-      let i = 0;
-      while (i + 1 < starts.length && t >= starts[i + 1]) i++;
+    // the scroll's place in the track (the pinned stretch is the track minus the stage, the same lengths the snap
+    // points are set in): which step, and how far towards the next
+    const follow = raf(() => {
+      const r = track.getBoundingClientRect();
+      const range = r.height - stageEl.offsetHeight;
+      const x = range > 0 ? Math.min(N - 0.001, Math.max(0, (-r.top / range) * N)) : 0;
+      const i = Math.floor(x), q = x - i;
       show(i);
-      const end = i + 1 < starts.length ? starts[i + 1] : END;
-      const p = Math.min(1, Math.max(0, (t - starts[i]) / (end - starts[i])));
-      fills.forEach((f, k) => { if (f) f.style.transform = `scaleX(${k === i ? p : 0})`; });
-      barFills.forEach((f, k) => { if (f) f.style.transform = `scaleX(${k < i ? 1 : k === i ? p : 0})`; });
-    };
-    const play = () => {
-      if (reduce || !onScreen || !video.src) return;
-      video.play().then(() => { playBtn.hidden = true; }).catch(() => { playBtn.hidden = false; });
-    };
-    const go = (t) => {
-      const jump = () => {
-        clearTimeout(fadeTimer);
-        if (reduce) { try { video.currentTime = t; } catch (_) { /* stays where it is */ } paint(); return; }
-        video.classList.add("jump");
-        fadeTimer = setTimeout(() => {
-          video.addEventListener("seeked", () => video.classList.remove("jump"), { once: true });
-          setTimeout(() => video.classList.remove("jump"), 700);  // in case no seek happens
-          try { video.currentTime = t; } catch (_) { /* stays where it is */ }
-          paint();
-        }, 200);
-      };
-      if (video.readyState >= 1) jump(); else video.addEventListener("loadedmetadata", jump, { once: true });
-    };
-    // keep the recording between the question and the sources
-    const keepInside = () => {
-      if (video.classList.contains("jump")) return;
-      if (video.currentTime >= END || video.currentTime < START - 0.5) go(START);
-    };
-    const tick = () => { paint(); keepInside(); frameId = requestAnimationFrame(tick); };
-    video.addEventListener("play", () => { cancelAnimationFrame(frameId); frameId = requestAnimationFrame(tick); });
-    video.addEventListener("pause", () => cancelAnimationFrame(frameId));
-    video.addEventListener("timeupdate", () => { paint(); keepInside(); });
-    video.addEventListener("ended", () => { go(START); play(); });
-    video.addEventListener("loadedmetadata", () => { if (video.currentTime < START) video.currentTime = START; paint(); });
-
-    steps.forEach((s, k) => s.querySelector("button").addEventListener("click", () => { go(starts[k]); play(); }));
-    bars.forEach((b, k) => b.addEventListener("click", () => { go(starts[k]); play(); }));
-    playBtn.addEventListener("click", () => {
-      playBtn.hidden = true;
-      video.play().catch(() => { playBtn.hidden = false; });
+      fills.forEach((f, k) => { if (f) f.style.transform = `scaleX(${k === i ? q : 0})`; });
+      barFills.forEach((f, k) => { if (f) f.style.transform = `scaleX(${k < i ? 1 : k === i ? q : 0})`; });
     });
-    show(0);
+    const scrollToStep = (k) => {
+      const r = track.getBoundingClientRect();
+      const range = r.height - stageEl.offsetHeight;
+      window.scrollTo({ top: window.scrollY + r.top + (k * range) / N + 2, behavior: reduce ? "auto" : "smooth" });
+    };
+    // keep the recording inside the step's moment: a fresh start goes straight there (the poster stays until then),
+    // the end of the moment fades back to its start
+    const keepInside = () => {
+      if (at < 0 || video.readyState < 1 || video.classList.contains("jump")) return;
+      const t = video.currentTime;
+      if (t < 1) { if (!video.paused) video.currentTime = starts[at]; }
+      else if (t >= ends[at] || t < starts[at] - 0.5) go(starts[at]);
+    };
+    video.addEventListener("timeupdate", keepInside);
+    video.addEventListener("ended", () => { if (at >= 0) go(starts[at]); play(); });
+
+    steps.forEach((s, k) => s.querySelector("button").addEventListener("click", () => scrollToStep(k)));
+    bars.forEach((b, k) => b.addEventListener("click", () => scrollToStep(k)));
+    video.addEventListener("click", () => {
+      if (video.paused) return;
+      userPaused = true;
+      video.pause();
+      playBtn.hidden = false;
+    });
+    playBtn.addEventListener("click", () => {
+      userPaused = false;
+      wanted = true;
+      playBtn.hidden = true;
+      if (video.src) start();
+    });
+    follow();
     if (reduce) playBtn.hidden = false;
 
     // the recording is fetched whole (about 2 MB) as the section nears, so every jump is instant and works on any
@@ -158,7 +184,8 @@ document.documentElement.classList.add("js");
       video.preload = "auto";
       video.src = src;
       video.load();
-      play();
+      if (at >= 0 && reduce) go(starts[at]);  // a still of the step in view, since it will not play by itself
+      if (wanted && onScreen) start(); else play();
     };
     video.addEventListener("error", () => { if (video.src.startsWith("blob:")) attach(file); });
     const load = new IntersectionObserver(([e]) => {
@@ -168,8 +195,13 @@ document.documentElement.classList.add("js");
         .then((b) => attach(URL.createObjectURL(new Blob([b], { type: "video/mp4" }))))
         .catch(() => attach(file));
     }, { rootMargin: "150% 0px" });
-    load.observe(howSec);
-    // play while the phone is well in view, pause when it is not
+    load.observe(track);
+    // follow the scroll only while the track is near, play while the phone is well in view, pause when it is not
+    new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { window.addEventListener("scroll", follow, { passive: true }); follow(); }
+      else window.removeEventListener("scroll", follow);
+    }, { rootMargin: "50% 0px" }).observe(track);
+    window.addEventListener("resize", follow);
     new IntersectionObserver(([e]) => {
       onScreen = e.isIntersecting;
       if (onScreen) play();
